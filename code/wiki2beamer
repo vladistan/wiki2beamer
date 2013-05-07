@@ -235,12 +235,14 @@ def transform_h4_to_frame(string, state):
     frame_opening = r"\\begin{frame}\2\n \\frametitle{\1}\n %s \n" % escape_resub(state.next_frame_header)
     frame_closing = escape_resub(get_frame_closing(state))
     
-    p = re.compile("^!?====\s*(.*?)\s*====(.*)", re.VERBOSE)
+    p = re.compile("^!?====\s*(.*?)\s*====\s?(\[.*\])", re.VERBOSE)
+    if None == re.search(p, string, flags=0):
+        p = re.compile("^!?====\s*(.*?)\s*====()", re.VERBOSE)
+
     if not state.frame_opened:
         _string = p.sub(frame_opening, string)
     else:
         _string = p.sub(frame_closing + frame_opening, string)
-
     if (string != _string):
         state.frame_opened = True
         state.switch_to_next_frame()
@@ -252,7 +254,10 @@ def transform_h3_to_subsec(string, state):
     frame_closing = escape_resub(get_frame_closing(state))
     subsec_opening = r"\n\\subsection\2{\1}\n\n"
 
-    p = re.compile("^===\s*(.*?)\s*===(.*)", re.VERBOSE)
+    p = re.compile("^===\s*(.*?)\s*===\s?(\[.*\])", re.VERBOSE)
+    if None == re.search(p, string, flags=0):
+        p = re.compile("^===\s*(.*?)\s*===()", re.VERBOSE)
+
     if state.frame_opened:
         _string = p.sub(frame_closing + subsec_opening, string)
     else:
@@ -266,7 +271,10 @@ def transform_h2_to_sec(string, state):
     """ headings (1) to sections """
     frame_closing = escape_resub(get_frame_closing(state))
     sec_opening = r"\n\\section\2{\1}\n\n"
-    p = re.compile("^==\s*(.*?)\s*==(.*)", re.VERBOSE)
+    p = re.compile("^==\s*(.*?)\s*==\s?(\[.*\])", re.VERBOSE)
+    if None == re.search(p, string, flags=0):
+        p = re.compile("^==\s*(.*?)\s*==()", re.VERBOSE)
+
     if state.frame_opened:
         _string = p.sub(frame_closing + sec_opening, string)
     else:
@@ -895,7 +903,7 @@ def read_file_to_lines(filename):
 
 def scan_for_selected_frames(lines):
     """scans for frames that should be rendered exclusively, returns true if such frames have been found"""
-    p = re.compile("^!====\s*(.*?)\s*====(.*)", re.VERBOSE)
+    p = re.compile("^!====\s*(.*?)\s*====", re.VERBOSE)
     for line in lines:
         mo = p.match(line)
         if mo != None:
@@ -903,13 +911,13 @@ def scan_for_selected_frames(lines):
     return False
 
 def line_opens_unselected_frame(line):
-    p = re.compile("^====\s*(.*?)\s*====(.*)", re.VERBOSE)
+    p = re.compile("^====\s*(.*?)\s*====", re.VERBOSE)
     if p.match(line) != None:
         return True
     return False
 
 def line_opens_selected_frame(line):
-    p = re.compile("^!====\s*(.*?)\s*====(.*)", re.VERBOSE)
+    p = re.compile("^!====\s*(.*?)\s*====", re.VERBOSE)
     if p.match(line) != None:
         return True
     return False
