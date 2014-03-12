@@ -52,6 +52,3 @@
 /tests/example/example.toc
 /tests/example/example.vrb
 test_wiki2beamer.pyc
-/nosetests.xml
-/coverage.xml
-/.coverage
