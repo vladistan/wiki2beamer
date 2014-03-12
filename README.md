@@ -4,8 +4,7 @@ Create latex beamer code from an easy, wiki-like syntax.
 
 * [Homepage](http://wiki2beamer.sourceforge.net/)
 * Current version: 0.9.5
-* [![Build Status](https://travis-ci.org/esc/wiki2beamer.png)](https://travis-ci.org/esc/wiki2beamer)
-
+* [![Build Status](https://travis-ci.org/vladistan/wiki2beamer.png?branch=current-dev)](https://travis-ci.org/vladistan/wiki2beamer)
 ## People
 
 * Maintainer:
