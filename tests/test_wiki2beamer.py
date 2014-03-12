@@ -77,6 +77,9 @@ class TestTransform(unittest.TestCase):
     def test_subsection(self):
         self.assertEqual(transform('=== foo ===', self.state), '\n\\subsection{foo}\n\n')
 
+    def test_titleslide(self):
+        self.assertEqual(transform('=! Title of the Slide? !=', self.state), "\n\\begin{frame}\n\\frametitle{Title of the Slide?}\n\\begin{center}\n{\\color{UMBCred} \\Huge Title of the Slide?}\n\\end{center}\n\\end{frame}")
+
     def test_footnote(self):
         self.assertEqual(transform('(((foo)))', self.state), '\\footnote{foo}')
 
