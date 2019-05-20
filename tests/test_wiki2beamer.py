@@ -363,7 +363,22 @@ class TestConvert2Beamer(unittest.TestCase):
                     '  \\item L2.2',
                     '\\end{itemize}\n\\end{itemize}\n']
         received = convert2beamer(lines)
-        self.assertTrue(expected, received)
+        self.assertEqual(expected, received)
+
+    def test_exhuberant_title(self):
+        lines = [
+            '=! Title !=',
+        ]
+        expected = [
+            '\n',
+            '\n'
+            '\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge Title}\n\\end{center}\n',
+            '',
+            '  \n\\end{frame}\n'
+        ]
+        received = convert2beamer(lines)
+        self.assertEqual(expected, received)
+
 
 class TestFileCache(unittest.TestCase):
     def setUp(self):
