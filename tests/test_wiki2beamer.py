@@ -41,7 +41,7 @@ class TestBasics(unittest.TestCase):
         string = r"foo \1 bar"
         expected = r"foo \\1 bar"
         out = escape_resub(string)
-        self.assertEqual(expected,out)
+        self.assertEqual(expected, out)
 
     def test_escape_resub2(self):
         instr = "abc"
