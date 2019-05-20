@@ -379,6 +379,19 @@ class TestConvert2Beamer(unittest.TestCase):
         received = convert2beamer(lines)
         self.assertEqual(expected, received)
 
+    def test_autotemplate(self):
+
+        lines = ['<[autotemplate]\n',
+                 'title={Test}\n',
+                 '[autotemplate]>\n',
+                 '\n',
+                 '== Hello ==\n',
+                 ]
+        expected = ['\\documentclass{beamer}\n']
+
+        received = convert2beamer(lines)
+        self.assertEquals(expected[0] == received[1])
+
 
 class TestFileCache(unittest.TestCase):
     def setUp(self):
@@ -393,7 +406,7 @@ class TestFileCache(unittest.TestCase):
         source_file = os.path.join(local_path, 'example/includefile.txt')
         out = get_lines_from_cache(source_file)
         expected = "Multiple inputs"
-        self.assertIn(expected, out[0])
+        self.assertTrue(expected in out[0])
 
 
 class TestFileInclusion(unittest.TestCase):
