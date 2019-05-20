@@ -387,10 +387,10 @@ class TestConvert2Beamer(unittest.TestCase):
                  '\n',
                  '== Hello ==\n',
                  ]
-        expected = ['\\documentclass{beamer}\n']
+        expected = ['\\documentclass{beamer}']
 
         received = convert2beamer(lines)
-        self.assertEquals(expected[0] == received[1])
+        self.assertTrue(expected[0] in received[1])
 
 
 class TestFileCache(unittest.TestCase):
