@@ -148,12 +148,51 @@ class TestTransform(unittest.TestCase):
         self.assertEqual(transform(r'\frac{V_1}{R_1}=\frac{V_2}{R_2}', self.state),
                 r'\frac{V_1}{R_1}=\frac{V_2}{R_2}')
 
+        self.assertEqual(transform(r'* $C_v$ and $P$ are not defined for $x_v$', self.state),
+                '\\begin{itemize}\n  \\item $C_v$ and $P$ are not defined for $x_v$')
+
+        # reset itemize from above test
+        transform("\n\n", self.state)
+
         # test for bug 3365134
         # colors interfere with graphics
         self.assertEqual(transform(r'<<<file/foo_bar/baz_dazz_baz>>>',
             self.state),'\includegraphics{file/foo_bar/baz_dazz_baz}')
         self.assertEqual(transform(r'_blue_make me blue_ <<<file/foo_bar_/baz_fasel.svg>>>',
             self.state),r'\textcolor{blue}{make me blue} \includegraphics{file/foo_bar_/baz_fasel.svg}')
+
+
+    def test_color_interferes_with_math(self):
+
+        input = """==== Title ====
+$$
+A := {a_1, a_2, ..., a_i}
+$$
+"""
+
+        expected = r'''\begin{frame}
+ \frametitle{Title}
+  
+
+$$
+A := {a_1, a_2, ..., a_i}
+$$
+'''
+
+        self.assertEqual(transform(input, self.state), expected)
+
+
+    def test_color_interferes_with_equation(self):
+
+        input = r"""A := {a_1, a_2, ..., a_i}"""
+
+        expected = r'''A := {a_1, a_2, ..., a_i}'''
+
+        transform("<[equation]", self.state)
+        self.assertIn('equation', self.state.active_envs)
+        self.assertEqual(transform(input, self.state), expected)
+        transform("[equation]>", self.state)
+
 
 class TestExpandCode(unittest.TestCase):
     def test_search_escape_sequences_basic(self):

@@ -158,6 +158,8 @@ class w2bstate:
         self.autotemplate_opened = False
         self.defverbs = maybe_odict()
         self.code_pos = 0
+        self.math_mode = 0
+        self.active_envs = dict()
         return
 
     def switch_to_next_frame(self):
@@ -310,7 +312,7 @@ def transform_replace_headfoot(string, state):
     string = string.replace("<---FRAMEFOOTER--->", state.frame_footer)
     return string
 
-def transform_environments(string):
+def transform_environments(string, state):
     """
     latex environments, the users takes full responsibility
     for closing ALL opened environments
@@ -321,10 +323,19 @@ def transform_environments(string):
     """
     # -> open
     p = re.compile("^<\[([^{}]*?)\]", re.VERBOSE)
+    m = re.match(p, string)
+    if m is not None and m.group(1).strip() != 'frame':
+        state.active_envs[m.group(1).strip()] = 1
     string = p.sub(r"\\begin{\1}", string)
+
     # -> close
     p = re.compile("^\[([^{}]*?)\]>", re.VERBOSE)
+    m = re.match(p, string)
+    if m is not None and m.group(1).strip() != 'frame':
+        del state.active_envs[m.group(1).strip()]
     string = p.sub(r"\\end{\1}", string)
+
+
 
     return string
 
@@ -386,7 +397,7 @@ def transform_alerts(string):
     """ alerts """
     return _transform_mini_parser('!', 'alert', string)
 
-def transform_colors(string):
+def transform_colors(string, state):
     """ colors """
     def maybe_replace(m):
         """ only replace if we are not within <<< >>> """
@@ -396,6 +407,9 @@ def transform_colors(string):
                 return m.string[m.start():m.end()]
 
         return "\\textcolor{" + m.group(1) + "}{" + m.group(2) + "}"
+
+    if state.math_mode or 'equation' in state.active_envs:
+        return string
 
     p = re.compile("(\<\<\<)(.*?)\>\>\>", re.VERBOSE)
     graphics = list(p.finditer(string))
@@ -457,10 +471,19 @@ def transform_only(string):
     string = p.sub(r"\\only<\1>{\2", string)
     return string
 
+def transform_detect_display_math(string, state):
+
+    if '$$' in string:
+        state.math_mode = not state.math_mode
+
+    return string
+
+
 def transform(string, state):
     """ convert/transform one line in context of state"""
 
     #string = transform_itemenums(string, state)
+    string = transform_detect_display_math(string, state)
     string = transform_define_foothead(string, state)
     string = transform_detect_manual_frameclose(string, state)
     string = transform_spec_to_title_slide(string, state)
@@ -469,13 +492,13 @@ def transform(string, state):
     string = transform_h2_to_sec(string, state)
     string = transform_replace_headfoot(string, state)
 
-    string = transform_environments(string)
+    string = transform_environments(string, state)
     string = transform_columns(string)
     string = transform_boldfont(string)
     string = transform_italicfont(string)
     string = transform_typewriterfont(string)
     string = transform_alerts(string)
-    string = transform_colors(string)
+    string = transform_colors(string, state)
     string = transform_footnotes(string)
     string = transform_graphics(string)
     string = transform_substitutions(string)
