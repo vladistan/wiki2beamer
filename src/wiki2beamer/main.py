@@ -35,7 +35,7 @@ import os
 import random
 import re
 import sys
-from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, TypeVar, Union, cast, Type
+from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, Type, TypeVar
 
 VERSIONTAG = "0.10.0"
 __version__ = VERSIONTAG
@@ -201,6 +201,7 @@ def clear_file_cache() -> None:
 
 try:
     from collections import OrderedDict
+
     maybe_odict: Type[Dict[str, str]] = OrderedDict
 except ImportError:
     maybe_odict = dict
@@ -928,16 +929,21 @@ def parse_usepackage(usepackage: str) -> Tuple[str, Optional[str]]:
     m = p.match(usepackage)
     if m is None:
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-        return ("", None)  # This line is never reached due to syntax_error, but needed for type checking
-    
+        return (
+            "",
+            None,
+        )  # This line is never reached due to syntax_error, but needed for type checking
+
     g = m.groups()
     if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-        return ("", None)  # This line is never reached due to syntax_error, but needed for type checking
-    else:
-        options = g[0]
-        name = g[1].strip()
-        return (name, options)
+        return (
+            "",
+            None,
+        )  # This line is never reached due to syntax_error, but needed for type checking
+    options = g[0]
+    name = g[1].strip()
+    return (name, options)
 
 
 def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tuple[str, str]]:
@@ -998,7 +1004,9 @@ def expand_autotemplate_gen_opening(autotemplate: List[Tuple[str, str]]) -> str:
     return "\n".join(out)
 
 
-def expand_autotemplate_opening(result: List[str], templatebuffer: List[str], state: w2bstate) -> None:
+def expand_autotemplate_opening(
+    result: List[str], templatebuffer: List[str], state: w2bstate
+) -> None:
     my_autotemplate = parse_autotemplate(templatebuffer)
     the_autotemplate = unify_autotemplates([autotemplate, my_autotemplate])
 
