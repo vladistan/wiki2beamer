@@ -7,7 +7,7 @@ all: $(patsubst %.wiki, %.pdf, $(WIKIFILES))
 
 %.tex: %.wiki
 	@echo "Translating $<"
-	@python ../../code/wiki2beamer $< > $@
+	wiki2beamer $< > $@
 
 
 %.pdf: %.tex
