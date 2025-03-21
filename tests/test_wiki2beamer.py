@@ -42,63 +42,61 @@ class TestBasics(unittest.TestCase):
     def test_join_lines_standard(self):
         lines = ["", "foo%", "bar"]
         joined = joinLines(lines)
-        self.assertEqual(len(joined), 2)
-        self.assertEqual(joined[0], lines[0])
-        self.assertEqual(joined[1], "foobar")
+        assert len(joined) == 2
+        assert joined[0] == lines[0]
+        assert joined[1] == "foobar"
 
     def test_join_lines_shortlines(self):
         lines = ["%", "%"]
         joined = joinLines(lines)
-        self.assertEqual(len(joined), 0)
+        assert len(joined) == 0
 
     def test_escape_resub(self):
         string = r"foo \1 bar"
         expected = r"foo \\1 bar"
         out = escape_resub(string)
-        self.assertEqual(expected, out)
+        assert expected == out
 
     def test_escape_resub2(self):
         instr = "abc"
         substr = r"a\1"
         p = re.compile(".*(b).*")
         out = p.sub(escape_resub(substr), instr)
-        self.assertEqual(out, substr)
+        assert out == substr
 
     def test_make_unique(self):
         a = make_unique("foofar")
-        self.assertEqual(sorted(a), ["a", "f", "o", "r"])
+        assert sorted(a) == ["a", "f", "o", "r"]
 
 
 class TestTransform(unittest.TestCase):
     def setUp(self):
         self.state = w2bstate()
-        return
 
     def tearDown(self):
         self.state = None
-        return
 
     def test_substitutions(self):
-        self.assertEqual(transform("foo --> bar", self.state), r"foo $\rightarrow$ bar")
-        self.assertEqual(transform("foo <-- bar", self.state), r"foo $\leftarrow$ bar")
+        assert transform("foo --> bar", self.state) == r"foo $\rightarrow$ bar"
+        assert transform("foo <-- bar", self.state) == r"foo $\leftarrow$ bar"
 
     def test_section(self):
-        self.assertEqual(transform("== foo ==", self.state), "\n\\section{foo}\n\n")
+        assert transform("== foo ==", self.state) == "\n\\section{foo}\n\n"
 
     def test_subsection(self):
-        self.assertEqual(transform("=== foo ===", self.state), "\n\\subsection{foo}\n\n")
+        assert transform("=== foo ===", self.state) == "\n\\subsection{foo}\n\n"
 
     def test_titleslide(self):
-        self.assertEqual(
-            transform("=! Title of the Slide? !=", self.state),
-            "\n\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge Title of the Slide?}\n\\end{center}\n",
+        assert (
+            transform("=! Title of the Slide? !=", self.state)
+            == "\n\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge Title of the Slide?}\n\\end{center}\n"
         )
 
     def test_footnote(self):
-        self.assertEqual(transform("(((foo)))", self.state), "\\footnote{foo}")
+        assert transform("(((foo)))", self.state) == "\\footnote{foo}"
 
     def test_columns(self):
-        self.assertEqual(transform("[[[6cm]]]", self.state), "\\column{6cm}")
+        assert transform("[[[6cm]]]", self.state) == "\\column{6cm}"
 
     def test_typewriter(self):
         input_expected = [
@@ -113,7 +111,7 @@ class TestTransform(unittest.TestCase):
             (r"\@TEST @TEST@ TEST\@", "@TEST \\texttt{TEST} TEST@"),
         ]
         for input_, expected in input_expected:
-            self.assertEqual(transform(input_, self.state), expected)
+            assert transform(input_, self.state) == expected
 
     def test_alert(self):
         input_expected = [
@@ -128,45 +126,45 @@ class TestTransform(unittest.TestCase):
             (r"\!TEST !TEST! TEST\!", "!TEST \\alert{TEST} TEST!"),
         ]
         for input_, expected in input_expected:
-            self.assertEqual(transform(input_, self.state), expected)
+            assert transform(input_, self.state) == expected
 
     def test_vspace(self):
-        self.assertEqual(transform("--3em--", self.state), "\n\\vspace{3em}\n")
-        self.assertEqual(transform("--3em--foo", self.state), "--3em--foo")
-        self.assertEqual(transform(" --3em-- ", self.state), "\n\\vspace{3em}\n")
+        assert transform("--3em--", self.state) == "\n\\vspace{3em}\n"
+        assert transform("--3em--foo", self.state) == "--3em--foo"
+        assert transform(" --3em-- ", self.state) == "\n\\vspace{3em}\n"
 
     def test_vspacestar(self):
-        self.assertEqual(transform("--*3em--", self.state), "\n\\vspace*{3em}\n")
-        self.assertEqual(transform("--*3em--foo", self.state), "--*3em--foo")
-        self.assertEqual(transform(" --*3em-- ", self.state), "\n\\vspace*{3em}\n")
+        assert transform("--*3em--", self.state) == "\n\\vspace*{3em}\n"
+        assert transform("--*3em--foo", self.state) == "--*3em--foo"
+        assert transform(" --*3em-- ", self.state) == "\n\\vspace*{3em}\n"
 
     def test_uncover(self):
-        self.assertEqual(transform("+<2-> {foo}", self.state), "\\uncover<2->{foo}")
-        self.assertEqual(transform(" +<2->{\nfoo", self.state), " \\uncover<2->{\nfoo")
+        assert transform("+<2-> {foo}", self.state) == "\\uncover<2->{foo}"
+        assert transform(" +<2->{\nfoo", self.state) == " \\uncover<2->{\nfoo"
 
     def test_only(self):
-        self.assertEqual(transform("-<2-> {foo}", self.state), r"\only<2->{foo}")
-        self.assertEqual(transform(" -<2->{\nfoo", self.state), " \\only<2->{\nfoo")
+        assert transform("-<2-> {foo}", self.state) == r"\only<2->{foo}"
+        assert transform(" -<2->{\nfoo", self.state) == " \\only<2->{\nfoo"
 
     def test_uncover_intext(self):
-        self.assertEqual(transform("foo +<2->{moo} bar", self.state), "foo \\uncover<2->{moo} bar")
-        self.assertEqual(
-            transform("foo +<2-3>  {\\begin{enumerate} \\end{enumerate}}", self.state),
-            "foo \\uncover<2-3>{\\begin{enumerate} \\end{enumerate}}",
+        assert transform("foo +<2->{moo} bar", self.state) == "foo \\uncover<2->{moo} bar"
+        assert (
+            transform("foo +<2-3>  {\\begin{enumerate} \\end{enumerate}}", self.state)
+            == "foo \\uncover<2-3>{\\begin{enumerate} \\end{enumerate}}"
         )
 
     def test_color(self):
-        self.assertEqual(transform("_blue_foo_", self.state), "\\textcolor{blue}{foo}")
+        assert transform("_blue_foo_", self.state) == "\\textcolor{blue}{foo}"
 
         # test for bug 3294518
-        self.assertEqual(
-            transform(r"\frac{V_1}{R_1}=\frac{V_2}{R_2}", self.state),
-            r"\frac{V_1}{R_1}=\frac{V_2}{R_2}",
+        assert (
+            transform(r"\frac{V_1}{R_1}=\frac{V_2}{R_2}", self.state)
+            == r"\frac{V_1}{R_1}=\frac{V_2}{R_2}"
         )
 
-        self.assertEqual(
-            transform(r"* $C_v$ and $P$ are not defined for $x_v$", self.state),
-            "\\begin{itemize}\n  \\item $C_v$ and $P$ are not defined for $x_v$",
+        assert (
+            transform(r"* $C_v$ and $P$ are not defined for $x_v$", self.state)
+            == "\\begin{itemize}\n  \\item $C_v$ and $P$ are not defined for $x_v$"
         )
 
         # reset itemize from above test
@@ -174,13 +172,13 @@ class TestTransform(unittest.TestCase):
 
         # test for bug 3365134
         # colors interfere with graphics
-        self.assertEqual(
-            transform(r"<<<file/foo_bar/baz_dazz_baz>>>", self.state),
-            r"\includegraphics{file/foo_bar/baz_dazz_baz}",
+        assert (
+            transform(r"<<<file/foo_bar/baz_dazz_baz>>>", self.state)
+            == r"\includegraphics{file/foo_bar/baz_dazz_baz}"
         )
-        self.assertEqual(
-            transform(r"_blue_make me blue_ <<<file/foo_bar_/baz_fasel.svg>>>", self.state),
-            r"\textcolor{blue}{make me blue} \includegraphics{file/foo_bar_/baz_fasel.svg}",
+        assert (
+            transform(r"_blue_make me blue_ <<<file/foo_bar_/baz_fasel.svg>>>", self.state)
+            == r"\textcolor{blue}{make me blue} \includegraphics{file/foo_bar_/baz_fasel.svg}"
         )
 
     @unittest.skip("skip this for now")
@@ -200,7 +198,7 @@ A := {a_1, a_2, ..., a_i}
 $$
 """
 
-        self.assertEqual(transform(input, self.state), expected)
+        assert transform(input, self.state) == expected
 
     def test_color_interferes_with_equation(self):
         input = r"""A := {a_1, a_2, ..., a_i}"""
@@ -208,8 +206,8 @@ $$
         expected = r"""A := {a_1, a_2, ..., a_i}"""
 
         transform("<[equation]", self.state)
-        self.assertIn("equation", self.state.active_envs)
-        self.assertEqual(transform(input, self.state), expected)
+        assert "equation" in self.state.active_envs
+        assert transform(input, self.state) == expected
         transform("[equation]>", self.state)
 
 
@@ -217,50 +215,50 @@ class TestExpandCode(unittest.TestCase):
     def test_search_escape_sequences_basic(self):
         code = 'System435.out.println("foo");123System.ou12t.println234("foo");System.23out.23456println("foo");S237yst28em.out.pr18intln("foo");'
         (open, close) = expand_code_search_escape_sequences(code)
-        self.assertEqual(code.find(open), -1)
-        self.assertEqual(code.find(close), -1)
+        assert code.find(open) == -1
+        assert code.find(close) == -1
 
     def test_search_escape_sequences_short(self):
         code = "12"
         (open, close) = expand_code_search_escape_sequences(code)
-        self.assertEqual(code.find(open), -1)
-        self.assertEqual(code.find(close), -1)
+        assert code.find(open) == -1
+        assert code.find(close) == -1
 
     def test_search_escape_sequences_veryshort(self):
         code = ""
         (open, close) = expand_code_search_escape_sequences(code)
-        self.assertEqual(code.find(open), -1)
-        self.assertEqual(code.find(close), -1)
+        assert code.find(open) == -1
+        assert code.find(close) == -1
 
     def test_search_escape_sequences_large(self):
         code = []
-        for i in range(0, 10000):
+        for i in range(10000):
             code.append(chr(random.randint(48, 57)))
         code = "".join(code)
 
         (open, close) = expand_code_search_escape_sequences(code)
-        self.assertEqual(code.find(open), -1)
-        self.assertEqual(code.find(close), -1)
+        assert code.find(open) == -1
+        assert code.find(close) == -1
 
     def test_expand_code_tokenize_anims(self):
         items = ["1", "2", "3", "-", ",", "[", "]", "<", ">", "a", "b", "c", "d", "e", "}", "{"]
         code = []
-        for i in range(0, 100):
+        for i in range(100):
             code.extend(items)
             random.shuffle(items)
 
         out = expand_code_tokenize_anims("".join(code))
-        self.assertTrue(len(out[0]) > 0)
-        self.assertTrue(len(out[1]) > 0)
+        assert len(out[0]) > 0
+        assert len(out[1]) > 0
         for item in out[0]:  # anims
-            self.assertTrue(item.startswith("[") and item.endswith("]"))
+            assert item.startswith("[") and item.endswith("]")
         for item in out[1]:  # non-anims
-            self.assertTrue(not (item.startswith("[") and item.endswith("]")))
+            assert not (item.startswith("[") and item.endswith("]"))
 
     def test_expand_code_tokenize_anims_empty(self):
         out = expand_code_tokenize_anims("")
-        self.assertEqual(out[0], [])
-        self.assertEqual(out[1], [""])
+        assert out[0] == []
+        assert out[1] == [""]
 
 
 class TestConvert2Beamer(unittest.TestCase):
@@ -274,19 +272,19 @@ class TestConvert2Beamer(unittest.TestCase):
         lines = ["<[nowiki ]%", "==== foo ====", "[ nowiki]>moo"]
         expected = ["\n", "%", "==== foo ====", "moo", ""]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_not_nowiki(self):
         lines = [" <[nowiki]", "== foo =="]
         expected = ["\n", " <[nowiki]", "\n\\section{foo}\n\n", ""]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_frame_open_close(self):
         lines = ["==== foo ===="]
         expected = ["\n", "\\begin{frame}\n \\frametitle{foo}\n  \n", "", "  \n\\end{frame}\n"]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_frame_open_close_again(self):
         lines = ["==== foo ====", "==== bar ===="]
@@ -298,7 +296,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "  \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_frame_close_detect(self):
         lines = ["==== foo ====", "[ frame ]>", "==== bar ===="]
@@ -311,7 +309,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "  \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_itemize(self):
         lines = ["* foo", "* bar", "** foobar"]
@@ -323,7 +321,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{itemize}\n\\end{itemize}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_itemize_nospace(self):
         lines = ["*foo", "*bar", "**foobar"]
@@ -335,7 +333,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{itemize}\n\\end{itemize}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_itemize_marker(self):
         lines = ["*[A]foo", "*[B] bar", "**[C] foobar"]
@@ -347,7 +345,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{itemize}\n\\end{itemize}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_enumerate(self):
         lines = ["# one", "# two", "## onetwo"]
@@ -359,7 +357,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{enumerate}\n\\end{enumerate}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_enumerate_nospace(self):
         lines = ["#one", "#two", "##onetwo"]
@@ -371,7 +369,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{enumerate}\n\\end{enumerate}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_enumerate_marker(self):
         lines = ["#[A]foo", "#[B] bar", "##[C] foobar"]
@@ -516,7 +514,7 @@ class TestConvert2Beamer(unittest.TestCase):
         ]
         expected = [
             "\n",
-            "\n" "\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge Title}\n\\end{center}\n",
+            "\n\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge Title}\n\\end{center}\n",
             "",
             "  \n\\end{frame}\n",
         ]
@@ -543,7 +541,6 @@ class TestFileCache(unittest.TestCase):
 
     def tearDown(self):
         clear_file_cache()
-        return
 
     def test_file_cache_works(self):
         local_path = os.path.dirname(os.path.abspath(__file__))
@@ -572,11 +569,9 @@ class TestFileInclusion(unittest.TestCase):
         }
         for file_, lines in list(files.items()):
             add_lines_to_cache(file_, lines)
-        return
 
     def tearDown(self):
         clear_file_cache()
-        return
 
     def test_include_file_works(self):
         expected = "test_file"

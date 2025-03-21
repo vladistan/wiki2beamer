@@ -128,10 +128,9 @@ def add_lines_to_cache(filename, lines):
 def get_lines_from_cache(filename):
     if filename in _file_cache:
         return _file_cache[filename]
-    else:
-        lines = read_file_to_lines(filename)
-        _file_cache[filename] = lines
-        return lines
+    lines = read_file_to_lines(filename)
+    _file_cache[filename] = lines
+    return lines
 
 
 def clear_file_cache():
@@ -158,12 +157,10 @@ class w2bstate:
         self.code_pos = 0
         self.math_mode = 0
         self.active_envs = dict()
-        return
 
     def switch_to_next_frame(self):
         self.frame_header = self.next_frame_header
         self.frame_footer = self.next_frame_footer
-        return
 
 
 def escape_resub(string):
@@ -660,8 +657,7 @@ def expand_code_getmaxoverlay(parsed_anims):
     max_overlay = 0
     for anim in parsed_anims:
         for spec in anim:
-            if spec[0] > max_overlay:
-                max_overlay = spec[0]
+            max_overlay = max(spec[0], max_overlay)
     return max_overlay
 
 
@@ -669,8 +665,7 @@ def expand_code_getminoverlay(parsed_anims):
     min_overlay = sys.maxsize
     for anim in parsed_anims:
         for spec in anim:
-            if spec[0] < min_overlay:
-                min_overlay = spec[0]
+            min_overlay = min(spec[0], min_overlay)
     if min_overlay == sys.maxsize:
         min_overlay = 0
     return min_overlay
@@ -681,11 +676,10 @@ def expand_code_genanims(parsed_animspec, minoverlay, maxoverlay, type):
     maxlen = 0
     if type == "double":
         for simple_animspec in parsed_animspec:
-            if maxlen < len(simple_animspec[1]):
-                maxlen = len(simple_animspec[1])
+            maxlen = max(maxlen, len(simple_animspec[1]))
 
     out = []
-    fill = "".join([" " for i in range(0, maxlen)])
+    fill = "".join([" " for i in range(maxlen)])
     for x in range(minoverlay, maxoverlay + 1):
         out.append(fill[:])
 
@@ -771,7 +765,7 @@ def expand_code_segment(result, codebuffer, state):
             expand_code_genanims(x[1], min_overlay, max_overlay, x[0]) for x in parsed_anims
         ]
         anim_map = {}
-        for i in range(0, max_overlay - min_overlay + 1):
+        for i in range(max_overlay - min_overlay + 1):
             anim_map[i + min_overlay] = [x[i] for x in gen_anims]
 
         names = []
@@ -798,8 +792,6 @@ def expand_code_segment(result, codebuffer, state):
         (name, expanded_code) = expand_code_get_unique_name(state.defverbs, code, lstparams)
         state.defverbs[name] = expanded_code
         result.append("\n\\%s\n" % name)
-
-    return
 
 
 def expand_code_defverbs(result, state):
@@ -863,9 +855,7 @@ def parse_usepackage(usepackage):
     p = re.compile(r"^\s*(\[.*\])?\s*\{(.*)\}\s*$")
     m = p.match(usepackage)
     g = m.groups()
-    if len(g) < 2 or len(g) > 2:
-        syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-    elif g[1] == None and g[1].strip() != "":
+    if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
     else:
         options = g[0]
@@ -941,7 +931,6 @@ def expand_autotemplate_opening(result, templatebuffer, state):
     result.append("")
     state.code_pos = len(result)
     state.autotemplate_opened = True
-    return
 
 
 def get_autotemplatemode(line, autotemplatemode):
@@ -950,33 +939,30 @@ def get_autotemplatemode(line, autotemplatemode):
     if not autotemplatemode and autotemplatestart.match(line) != None:
         line = autotemplatestart.sub("", line)
         return (line, True)
-    elif autotemplatemode and autotemplateend.match(line) != None:
+    if autotemplatemode and autotemplateend.match(line) != None:
         line = autotemplateend.sub("", line)
         return (line, False)
-    else:
-        return (line, autotemplatemode)
+    return (line, autotemplatemode)
 
 
 def get_nowikimode(line, nowikimode):
     if not nowikimode and nowikistartre.match(line) != None:
         line = nowikistartre.sub("", line)
         return (line, True)
-    elif nowikimode and nowikiendre.match(line) != None:
+    if nowikimode and nowikiendre.match(line) != None:
         line = nowikiendre.sub("", line)
         return (line, False)
-    else:
-        return (line, nowikimode)
+    return (line, nowikimode)
 
 
 def get_codemode(line, codemode):
     if not codemode and codestartre.match(line) != None:
         line = codestartre.sub("", line)
         return (line, True)
-    elif codemode and codeendre.match(line) != None:
+    if codemode and codeendre.match(line) != None:
         line = codeendre.sub("", line)
         return (line, False)
-    else:
-        return (line, codemode)
+    return (line, codemode)
 
 
 def joinLines(lines):
@@ -995,9 +981,9 @@ def joinLines(lines):
         else:
             l = _l
 
-        if not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\"):
-            s = s + l[:-1]
-        elif not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%"):
+        if (
+            not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\")
+        ) or (not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%")):
             s = s + l[:-1]
         else:
             s = s + l
@@ -1107,8 +1093,7 @@ def include_file(line):
     if p.match(line):
         filename = p.sub(r"\1", line)
         return filename
-    else:
-        return None
+    return None
 
 
 def include_file_recursive(base):
@@ -1140,8 +1125,7 @@ def include_file_recursive(base):
                             "Loop detected while trying "
                             "to include: '%s'.\n" % include + "Stack: " + "->".join(stack)
                         )
-                    else:
-                        recurse(include)
+                    recurse(include)
                 else:
                     output.append(line)
         stack.pop()
@@ -1225,7 +1209,6 @@ def print_result(lines):
     """print result to stdout"""
     for l in lines:
         pprint(l, file=sys.stdout)
-    return
 
 
 def redirect_stdout(outfilename):

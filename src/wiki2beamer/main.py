@@ -27,14 +27,13 @@
 # Additional commits by:
 #     Valentin Haenel <valentin.haenel@gmx.de>
 #     Julius Plenz <julius@plenz.com>
-
-
 import codecs
 import optparse
 import os
 import random
 import re
 import sys
+from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, TypeVar
 
 VERSIONTAG = "0.10.0"
 __version__ = VERSIONTAG
@@ -43,29 +42,29 @@ __author__ = "Michael Rentzsch, Kai Dietrich and others"
 # python 2.4 compatability
 if sys.version_info >= (2, 5):
     import hashlib
+
+    md5_module = None
 else:
-    import md5
+    import md5 as md5_module  # type: ignore[import, name-defined]
 
 
 # python 2.4 compatability
-def md5hex(string):
+def md5hex(string: str) -> str:
     if sys.version_info >= (2, 5):
         # presume that this is valid for all pythin versions after 3
         if sys.version_info >= (3, 0):
             return hashlib.md5(string.encode("utf-8")).hexdigest()
-        else:
-            return hashlib.md5(string).hexdigest()
-    else:
-        dg = md5.md5()
-        dg.update(string)
-        return dg.hexdigest()
+        return hashlib.md5(string).hexdigest()
+    dg = md5_module.md5()  # type: ignore[attr-defined]
+    dg.update(string)
+    return dg.hexdigest()
 
 
-_redirected_stdout = None
-_redirected_stderr = None
+_redirected_stdout: Optional[Any] = None
+_redirected_stderr: Optional[Any] = None
 
 
-def pprint(string, file=sys.stdout, eol=True):
+def pprint(string: str, file: Any = sys.stdout, eol: bool = True) -> None:
     """portable version of print which directly writes into the given stream"""
     if file == sys.stdout and _redirected_stdout is not None:
         file = _redirected_stdout
@@ -82,12 +81,12 @@ def pprint(string, file=sys.stdout, eol=True):
     file.flush()
 
 
-def mydebug(message):
+def mydebug(message: str) -> None:
     """print debug message to stderr"""
     pprint(message, file=sys.stderr)
 
 
-def syntax_error(message, code):
+def syntax_error(message: str, code: str) -> None:
     pprint("syntax error: %s" % message, file=sys.stderr)
     pprint("\tcode:\n%s" % code, file=sys.stderr)
     sys.exit(-3)
@@ -97,7 +96,7 @@ class IncludeLoopException(Exception):
     pass
 
 
-lstbasicstyle = r"""{basic}{
+lstbasicstyle: str = r"""{basic}{
     captionpos=t,%
     basicstyle=\footnotesize\ttfamily,%
     numberstyle=\tiny,%
@@ -114,7 +113,7 @@ lstbasicstyle = r"""{basic}{
     stringstyle=\color{magenta}%
 }"""
 
-autotemplate = [
+autotemplate: List[Tuple[str, str]] = [
     ("documentclass", "{beamer}"),
     ("usepackage", "{listings}"),
     ("usepackage", "{wasysym}"),
@@ -124,41 +123,47 @@ autotemplate = [
     ("titleframe", "True"),
 ]
 
-nowikistartre = re.compile(r"^<\[\s*nowiki\s*\]")
-nowikiendre = re.compile(r"^\[\s*nowiki\s*\]>")
-codestartre = re.compile(r"^<\[\s*code\s*\]")
-codeendre = re.compile(r"^\[\s*code\s*\]>")
+nowikistartre: Pattern[str] = re.compile(r"^<\[\s*nowiki\s*\]")
+nowikiendre: Pattern[str] = re.compile(r"^\[\s*nowiki\s*\]>")
+codestartre: Pattern[str] = re.compile(r"^<\[\s*code\s*\]")
+codeendre: Pattern[str] = re.compile(r"^\[\s*code\s*\]>")
 
 # lazy initialisation cache for file content
-_file_cache = {}
+_file_cache: Dict[str, List[str]] = {}
 
 
-def add_lines_to_cache(filename, lines):
+def add_lines_to_cache(filename: str, lines: List[str]) -> None:
     if filename not in _file_cache:
         _file_cache[filename] = lines
 
 
-def get_lines_from_cache(filename):
+def get_lines_from_cache(filename: str) -> List[str]:
     if filename in _file_cache:
         return _file_cache[filename]
-    else:
-        lines = read_file_to_lines(filename)
-        _file_cache[filename] = lines
-        return lines
+    lines = read_file_to_lines(filename)
+    _file_cache[filename] = lines
+    return lines
 
 
-def clear_file_cache():
+def clear_file_cache() -> None:
     _file_cache.clear()
 
 
+# Define OrderedDict type
+from typing import Type
+
+DictType_T = Type[Dict[str, str]]
+
 try:
-    from collections import OrderedDict as maybe_odict
+    from collections import OrderedDict
+
+    maybe_odict: DictType_T = OrderedDict  # type: ignore[assignment]
 except ImportError:
-    maybe_odict = dict
+    maybe_odict: DictType_T = dict  # type: ignore[assignment]
 
 
 class w2bstate:
-    def __init__(self):
+    def __init__(self) -> None:
         self.frame_opened = False
         self.enum_item_level = ""
         self.frame_header = ""
@@ -167,24 +172,22 @@ class w2bstate:
         self.next_frame_header = ""
         self.current_line = 0
         self.autotemplate_opened = False
-        self.defverbs = maybe_odict()
+        self.defverbs: Dict[str, str] = maybe_odict()
         self.code_pos = 0
         self.math_mode = 0
-        self.active_envs = dict()
-        return
+        self.active_envs: Dict[str, int] = dict()
 
-    def switch_to_next_frame(self):
+    def switch_to_next_frame(self) -> None:
         self.frame_header = self.next_frame_header
         self.frame_footer = self.next_frame_footer
-        return
 
 
-def escape_resub(string):
+def escape_resub(string: str) -> str:
     p = re.compile(r"\\")
     return p.sub(r"\\\\", string)
 
 
-def transform_itemenums(string, state):
+def transform_itemenums(string: str, state: w2bstate) -> str:
     """handle itemizations/enumerations"""
     preamble = ""  # for enumeration/itemize environment commands
 
@@ -232,7 +235,7 @@ def transform_itemenums(string, state):
     return string
 
 
-def transform_define_foothead(string, state):
+def transform_define_foothead(string: str, state: w2bstate) -> str:
     """header and footer definitions"""
     p = re.compile("^@FRAMEHEADER=(.*)$", re.VERBOSE)
     m = p.match(string)
@@ -247,7 +250,7 @@ def transform_define_foothead(string, state):
     return string
 
 
-def transform_detect_manual_frameclose(string, state):
+def transform_detect_manual_frameclose(string: str, state: w2bstate) -> str:
     """detect manual closing of frames"""
     p = re.compile(r"\[\s*frame\s*\]>")
     if state.frame_opened:
@@ -256,11 +259,11 @@ def transform_detect_manual_frameclose(string, state):
     return string
 
 
-def get_frame_closing(state):
+def get_frame_closing(state: w2bstate) -> str:
     return " %s \n\\end{frame}\n" % state.frame_footer
 
 
-def transform_spec_to_title_slide(string, state):
+def transform_spec_to_title_slide(string: str, state: w2bstate) -> str:
     frame_opening = (
         r"\n\\begin{frame}\n\\frametitle{}\n\\begin{center}\n{\\Huge \1}\n\\end{center}\n"
     )
@@ -280,7 +283,7 @@ def transform_spec_to_title_slide(string, state):
     return _string
 
 
-def transform_h4_to_frame(string, state):
+def transform_h4_to_frame(string: str, state: w2bstate) -> str:
     """headings (3) to frames"""
     frame_opening = r"\\begin{frame}\2\n \\frametitle{\1}\n %s \n" % escape_resub(
         state.next_frame_header
@@ -300,7 +303,7 @@ def transform_h4_to_frame(string, state):
     return _string
 
 
-def transform_h3_to_subsec(string, state):
+def transform_h3_to_subsec(string: str, state: w2bstate) -> str:
     """headings (2) to subsections"""
     frame_closing = escape_resub(get_frame_closing(state))
     subsec_opening = r"\n\\subsection\2{\1}\n\n"
@@ -316,7 +319,7 @@ def transform_h3_to_subsec(string, state):
     return _string
 
 
-def transform_h2_to_sec(string, state):
+def transform_h2_to_sec(string: str, state: w2bstate) -> str:
     """headings (1) to sections"""
     frame_closing = escape_resub(get_frame_closing(state))
     sec_opening = r"\n\\section\2{\1}\n\n"
@@ -331,13 +334,13 @@ def transform_h2_to_sec(string, state):
     return _string
 
 
-def transform_replace_headfoot(string, state):
+def transform_replace_headfoot(string: str, state: w2bstate) -> str:
     string = string.replace("<---FRAMEHEADER--->", state.frame_header)
     string = string.replace("<---FRAMEFOOTER--->", state.frame_footer)
     return string
 
 
-def transform_environments(string, state):
+def transform_environments(string: str, state: w2bstate) -> str:
     """
     latex environments, the users takes full responsibility
     for closing ALL opened environments
@@ -363,30 +366,31 @@ def transform_environments(string, state):
     return string
 
 
-def transform_columns(string):
+def transform_columns(string: str) -> str:
     """columns"""
     p = re.compile(r"^\[\[\[(.*?)\]\]\]", re.VERBOSE)
     string = p.sub(r"\\column{\1}", string)
     return string
 
 
-def transform_boldfont(string):
+def transform_boldfont(string: str) -> str:
     """bold font"""
     p = re.compile("'''(.*?)'''", re.VERBOSE)
     string = p.sub(r"\\textbf{\1}", string)
     return string
 
 
-def transform_italicfont(string):
+def transform_italicfont(string: str) -> str:
     """italic font"""
     p = re.compile("''(.*?)''", re.VERBOSE)
     string = p.sub(r"\\emph{\1}", string)
     return string
 
 
-def _transform_mini_parser(character, replacement, string):
+def _transform_mini_parser(character: str, replacement: str, string: str) -> str:
     # implemented as a state-machine
-    output, typewriter = [], []
+    output: List[str] = []
+    typewriter: List[str] = []
     seen_at, seen_escape = False, False
     for char in string:
         if seen_escape:
@@ -417,20 +421,20 @@ def _transform_mini_parser(character, replacement, string):
     return "".join(output)
 
 
-def transform_typewriterfont(string):
+def transform_typewriterfont(string: str) -> str:
     """typewriter font"""
     return _transform_mini_parser("@", "texttt", string)
 
 
-def transform_alerts(string):
+def transform_alerts(string: str) -> str:
     """alerts"""
     return _transform_mini_parser("!", "alert", string)
 
 
-def transform_colors(string, state):
+def transform_colors(string: str, state: w2bstate) -> str:
     """colors"""
 
-    def maybe_replace(m):
+    def maybe_replace(m: Match[str]) -> str:
         """only replace if we are not within <<< >>>"""
         for g in graphics:
             # found color is within a graphics token
@@ -449,14 +453,14 @@ def transform_colors(string, state):
     return string
 
 
-def transform_footnotes(string):
+def transform_footnotes(string: str) -> str:
     """footnotes"""
     p = re.compile(r"\(\(\((.*?)\)\)\)", re.VERBOSE)
     string = p.sub(r"\\footnote{\1}", string)
     return string
 
 
-def transform_graphics(string):
+def transform_graphics(string: str) -> str:
     """figures/images"""
     p = re.compile(r"\<\<\<(.*?),(.*?)\>\>\>", re.VERBOSE)
     string = p.sub(r"\\includegraphics[\2]{\1}", string)
@@ -465,7 +469,7 @@ def transform_graphics(string):
     return string
 
 
-def transform_substitutions(string):
+def transform_substitutions(string: str) -> str:
     """substitutions"""
     p = re.compile(r"(\s)-->(\s)", re.VERBOSE)
     string = p.sub(r"\1$\\rightarrow$\2", string)
@@ -482,42 +486,42 @@ def transform_substitutions(string):
     return string
 
 
-def transform_vspace(string):
+def transform_vspace(string: str) -> str:
     """vspace"""
     p = re.compile(r"^\s*--(.*)--\s*$")
     string = p.sub(r"\n\\vspace{\1}\n", string)
     return string
 
 
-def transform_vspacestar(string):
+def transform_vspacestar(string: str) -> str:
     """vspace*"""
     p = re.compile(r"^\s*--\*(.*)--\s*$")
     string = p.sub(r"\n\\vspace*{\1}\n", string)
     return string
 
 
-def transform_uncover(string):
+def transform_uncover(string: str) -> str:
     """uncover"""
     p = re.compile(r"\+<(.*)>\s*{(.*)")  # +<1-2>{.... -> \uncover<1-2>{....
     string = p.sub(r"\\uncover<\1>{\2", string)
     return string
 
 
-def transform_only(string):
+def transform_only(string: str) -> str:
     """only"""
     p = re.compile(r"-<(.*)>\s*{(.*)")  # -<1-2>{.... -> \only<1-2>{....
     string = p.sub(r"\\only<\1>{\2", string)
     return string
 
 
-def transform_detect_display_math(string, state):
+def transform_detect_display_math(string: str, state: w2bstate) -> str:
     if "$$" in string:
         state.math_mode = not state.math_mode
 
     return string
 
 
-def transform(string, state):
+def transform(string: str, state: w2bstate) -> str:
     """convert/transform one line in context of state"""
 
     # string = transform_itemenums(string, state)
@@ -550,15 +554,15 @@ def transform(string, state):
     return string
 
 
-def expand_code_make_defverb(content, name):
+def expand_code_make_defverb(content: str, name: str) -> str:
     return "\\defverbatim[colored]\\%s{\n%s\n}" % (name, content)
 
 
-def expand_code_make_lstlisting(content, options):
+def expand_code_make_lstlisting(content: str, options: str) -> str:
     return "\\begin{lstlisting}%s%s\\end{lstlisting}" % (options, content)
 
 
-def expand_code_search_escape_sequences(code):
+def expand_code_search_escape_sequences(code: str) -> Tuple[str, str]:
     esc_open = "1"
     esc_close = "2"
     while code.find(esc_open) != -1 or code.find(esc_close) != -1:
@@ -568,7 +572,7 @@ def expand_code_search_escape_sequences(code):
     return (esc_open, esc_close)
 
 
-def expand_code_tokenize_anims(code):
+def expand_code_tokenize_anims(code: str) -> Tuple[List[str], List[str]]:
     # escape
     (esc_open, esc_close) = expand_code_search_escape_sequences(code)
     code = code.replace("\\[", esc_open)
@@ -585,16 +589,19 @@ def expand_code_tokenize_anims(code):
     return (anim, non_anim)
 
 
-def make_unique(seq):
+T = TypeVar("T")
+
+
+def make_unique(seq: List[T]) -> List[T]:
     """remove duplicate elements in a list, does not preserve order"""
-    keys = {}
+    keys: Dict[T, int] = {}
     for elem in seq:
         keys[elem] = 1
     return list(keys.keys())
 
 
-def expand_code_parse_overlayspec(overlayspec):
-    overlays = []
+def expand_code_parse_overlayspec(overlayspec: str) -> List[int]:
+    overlays: List[int] = []
 
     groups = overlayspec.split(",")
     for group in groups:
@@ -628,7 +635,7 @@ def expand_code_parse_overlayspec(overlayspec):
     return overlays
 
 
-def expand_code_parse_simpleanimspec(animspec):
+def expand_code_parse_simpleanimspec(animspec: str) -> List[Tuple[int, str]]:
     # escape
     (esc_open, esc_close) = expand_code_search_escape_sequences(animspec)
     animspec = animspec.replace("\\[", esc_open)
@@ -648,7 +655,7 @@ def expand_code_parse_simpleanimspec(animspec):
     return [(overlay, code) for overlay in overlays]
 
 
-def expand_code_parse_animspec(animspec):
+def expand_code_parse_animspec(animspec: str) -> Tuple[str, List[Tuple[int, str]]]:
     if len(animspec) < 4 or not animspec.startswith("[["):
         return ("simple", expand_code_parse_simpleanimspec(animspec))
 
@@ -669,36 +676,35 @@ def expand_code_parse_animspec(animspec):
     return ("double", unified_pss)
 
 
-def expand_code_getmaxoverlay(parsed_anims):
+def expand_code_getmaxoverlay(parsed_anims: List[List[Tuple[int, str]]]) -> int:
     max_overlay = 0
     for anim in parsed_anims:
         for spec in anim:
-            if spec[0] > max_overlay:
-                max_overlay = spec[0]
+            max_overlay = max(spec[0], max_overlay)
     return max_overlay
 
 
-def expand_code_getminoverlay(parsed_anims):
+def expand_code_getminoverlay(parsed_anims: List[List[Tuple[int, str]]]) -> int:
     min_overlay = sys.maxsize
     for anim in parsed_anims:
         for spec in anim:
-            if spec[0] < min_overlay:
-                min_overlay = spec[0]
+            min_overlay = min(spec[0], min_overlay)
     if min_overlay == sys.maxsize:
         min_overlay = 0
     return min_overlay
 
 
-def expand_code_genanims(parsed_animspec, minoverlay, maxoverlay, type):
+def expand_code_genanims(
+    parsed_animspec: List[Tuple[int, str]], minoverlay: int, maxoverlay: int, type: str
+) -> List[str]:
     # get maximum length of code
     maxlen = 0
     if type == "double":
         for simple_animspec in parsed_animspec:
-            if maxlen < len(simple_animspec[1]):
-                maxlen = len(simple_animspec[1])
+            maxlen = max(maxlen, len(simple_animspec[1]))
 
     out = []
-    fill = "".join([" " for i in range(0, maxlen)])
+    fill = "".join([" " for i in range(maxlen)])
     for x in range(minoverlay, maxoverlay + 1):
         out.append(fill[:])
 
@@ -708,7 +714,7 @@ def expand_code_genanims(parsed_animspec, minoverlay, maxoverlay, type):
     return out
 
 
-def expand_code_getname(code):
+def expand_code_getname(code: str) -> str:
     hex2alpha_table = {
         "0": "a",
         "1": "b",
@@ -732,7 +738,7 @@ def expand_code_getname(code):
     return alphahash
 
 
-def expand_code_makeoverprint(names, minoverlay):
+def expand_code_makeoverprint(names: List[str], minoverlay: int) -> str:
     out = ["\\begin{overprint}\n"]
     for index, name in enumerate(names):
         out.append("  \\onslide<%d>\\%s\n" % (index + minoverlay, name))
@@ -741,7 +747,9 @@ def expand_code_makeoverprint(names, minoverlay):
     return "".join(out)
 
 
-def expand_code_get_unique_name(defverbs, code, lstparams):
+def expand_code_get_unique_name(
+    defverbs: Dict[str, str], code: str, lstparams: str
+) -> Tuple[str, str]:
     """generate a collision free entry in the defverbs-map and names-list"""
     name = expand_code_getname(code)
     expanded_code = expand_code_make_defverb(expand_code_make_lstlisting(code, lstparams), name)
@@ -754,14 +762,14 @@ def expand_code_get_unique_name(defverbs, code, lstparams):
     return (name, expanded_code)
 
 
-def make_sorted(seq):
+def make_sorted(seq: Any) -> List[Any]:
     """replacement for sorted built-in"""
     l = list(seq)
     l.sort()
     return l
 
 
-def expand_code_segment(result, codebuffer, state):
+def expand_code_segment(result: List[str], codebuffer: List[str], state: w2bstate) -> None:
     # treat first line as params for lstlistings
     lstparams = codebuffer[0]
     codebuffer[0] = ""
@@ -774,17 +782,18 @@ def expand_code_segment(result, codebuffer, state):
     if len(anim) > 0:
         # generate multiple versions of the anim parts
         parsed_anims = list(map(expand_code_parse_animspec, anim))
-        max_overlay = expand_code_getmaxoverlay(x[1] for x in parsed_anims)
+        parsed_anim_lists = [x[1] for x in parsed_anims]
+        max_overlay = expand_code_getmaxoverlay(parsed_anim_lists)
         # if there is unanimated code, use 0 as the starting overlay
         if len(list(non_anim)) > 0:
             min_overlay = 1
         else:
-            min_overlay = expand_code_getminoverlay(x[1] for x in parsed_anims)
+            min_overlay = expand_code_getminoverlay(parsed_anim_lists)
         gen_anims = [
             expand_code_genanims(x[1], min_overlay, max_overlay, x[0]) for x in parsed_anims
         ]
         anim_map = {}
-        for i in range(0, max_overlay - min_overlay + 1):
+        for i in range(max_overlay - min_overlay + 1):
             anim_map[i + min_overlay] = [x[i] for x in gen_anims]
 
         names = []
@@ -812,21 +821,19 @@ def expand_code_segment(result, codebuffer, state):
         state.defverbs[name] = expanded_code
         result.append("\n\\%s\n" % name)
 
-    return
 
-
-def expand_code_defverbs(result, state):
+def expand_code_defverbs(result: List[str], state: w2bstate) -> None:
     result[state.code_pos] = (
         result[state.code_pos] + "\n".join(list(state.defverbs.values())) + "\n"
     )
     state.defverbs.clear()
 
 
-def get_autotemplate_closing():
+def get_autotemplate_closing() -> str:
     return "\n\\end{document}\n"
 
 
-def parse_bool(string):
+def parse_bool(string: str) -> bool:
     boolean = False
 
     if string == "True" or string == "true" or string == "1":
@@ -839,7 +846,7 @@ def parse_bool(string):
     return boolean
 
 
-def parse_autotemplate(autotemplatebuffer):
+def parse_autotemplate(autotemplatebuffer: List[str]) -> List[Tuple[str, str]]:
     r"""
     @param autotemplatebuffer (list)
         a list of lines found in the autotemplate section
@@ -865,7 +872,7 @@ def parse_autotemplate(autotemplatebuffer):
     return autotemplate
 
 
-def parse_usepackage(usepackage):
+def parse_usepackage(usepackage: str) -> Tuple[str, Optional[str]]:
     """
     @param usepackage (str)
         the unparsed usepackage string in the form [options]{name}
@@ -875,23 +882,31 @@ def parse_usepackage(usepackage):
 
     p = re.compile(r"^\s*(\[.*\])?\s*\{(.*)\}\s*$")
     m = p.match(usepackage)
+    if m is None:
+        syntax_error("usepackage specifications have to be of the form [options]{name}", usepackage)
+        return (
+            "",
+            None,
+        )  # This line will never be reached due to syntax_error, but needed for type checking
+
     g = m.groups()
-    if len(g) < 2 or len(g) > 2:
+    if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-    elif g[1] == None and g[1].strip() != "":
-        syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-    else:
-        options = g[0]
-        name = g[1].strip()
-        return (name, options)
+        return (
+            "",
+            None,
+        )  # This line will never be reached due to syntax_error, but needed for type checking
+    options = g[0]
+    name = g[1].strip()
+    return (name, options)
 
 
-def unify_autotemplates(autotemplates):
-    usepackages = {}  # packagename : options
+def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tuple[str, str]]:
+    usepackages: Dict[str, Optional[str]] = {}  # packagename : options
     documentclass = ""
-    titleframe = False
+    titleframe: str = "False"
 
-    merged = []
+    merged: List[Tuple[str, str]] = []
     for template in autotemplates:
         for command in template:
             if command[0] == "usepackage":
@@ -919,7 +934,7 @@ def unify_autotemplates(autotemplates):
     return autotemplate
 
 
-def expand_autotemplate_gen_opening(autotemplate):
+def expand_autotemplate_gen_opening(autotemplate: List[Tuple[str, str]]) -> str:
     """
     @param autotemplate (list)
         the specification of the autotemplate in the form of a list of tuples
@@ -928,7 +943,7 @@ def expand_autotemplate_gen_opening(autotemplate):
     """
     titleframe = False
     titleframeopts = ""
-    out = []
+    out: List[str] = []
     for item in autotemplate:
         if item[0] == "titleframe":
             titleframe = parse_bool(item[1])
@@ -944,7 +959,9 @@ def expand_autotemplate_gen_opening(autotemplate):
     return "\n".join(out)
 
 
-def expand_autotemplate_opening(result, templatebuffer, state):
+def expand_autotemplate_opening(
+    result: List[str], templatebuffer: List[str], state: w2bstate
+) -> None:
     my_autotemplate = parse_autotemplate(templatebuffer)
     the_autotemplate = unify_autotemplates([autotemplate, my_autotemplate])
 
@@ -954,45 +971,41 @@ def expand_autotemplate_opening(result, templatebuffer, state):
     result.append("")
     state.code_pos = len(result)
     state.autotemplate_opened = True
-    return
 
 
-def get_autotemplatemode(line, autotemplatemode):
+def get_autotemplatemode(line: str, autotemplatemode: bool) -> Tuple[str, bool]:
     autotemplatestart = re.compile(r"^<\[\s*autotemplate\s*\]")
     autotemplateend = re.compile(r"^\[\s*autotemplate\s*\]>")
     if not autotemplatemode and autotemplatestart.match(line) != None:
         line = autotemplatestart.sub("", line)
         return (line, True)
-    elif autotemplatemode and autotemplateend.match(line) != None:
+    if autotemplatemode and autotemplateend.match(line) != None:
         line = autotemplateend.sub("", line)
         return (line, False)
-    else:
-        return (line, autotemplatemode)
+    return (line, autotemplatemode)
 
 
-def get_nowikimode(line, nowikimode):
+def get_nowikimode(line: str, nowikimode: bool) -> Tuple[str, bool]:
     if not nowikimode and nowikistartre.match(line) != None:
         line = nowikistartre.sub("", line)
         return (line, True)
-    elif nowikimode and nowikiendre.match(line) != None:
+    if nowikimode and nowikiendre.match(line) != None:
         line = nowikiendre.sub("", line)
         return (line, False)
-    else:
-        return (line, nowikimode)
+    return (line, nowikimode)
 
 
-def get_codemode(line, codemode):
+def get_codemode(line: str, codemode: bool) -> Tuple[str, bool]:
     if not codemode and codestartre.match(line) != None:
         line = codestartre.sub("", line)
         return (line, True)
-    elif codemode and codeendre.match(line) != None:
+    if codemode and codeendre.match(line) != None:
         line = codeendre.sub("", line)
         return (line, False)
-    else:
-        return (line, codemode)
+    return (line, codemode)
 
 
-def joinLines(lines):
+def joinLines(lines: List[str]) -> List[str]:
     """join lines ending with unescaped percent signs, unless inside codemode or nowiki mode"""
     nowikimode = False
     codemode = False
@@ -1008,9 +1021,9 @@ def joinLines(lines):
         else:
             l = _l
 
-        if not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\"):
-            s = s + l[:-1]
-        elif not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%"):
+        if (
+            not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\")
+        ) or (not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%")):
             s = s + l[:-1]
         else:
             s = s + l
@@ -1020,7 +1033,7 @@ def joinLines(lines):
     return r
 
 
-def read_file_to_lines(filename):
+def read_file_to_lines(filename: str) -> List[str]:
     """read file"""
     try:
         f = codecs.open(filename, "r", encoding="UTF-8")
@@ -1033,7 +1046,7 @@ def read_file_to_lines(filename):
     return lines
 
 
-def scan_for_selected_frames(lines):
+def scan_for_selected_frames(lines: List[str]) -> bool:
     """scans for frames that should be rendered exclusively, returns true if such frames have been found"""
     p = re.compile(r"^!====\s*(.*?)\s*====(.*)", re.VERBOSE)
     for line in lines:
@@ -1043,28 +1056,28 @@ def scan_for_selected_frames(lines):
     return False
 
 
-def line_opens_unselected_frame(line):
+def line_opens_unselected_frame(line: str) -> bool:
     p = re.compile(r"^====\s*(.*?)\s*====(.*)", re.VERBOSE)
     if p.match(line) is not None:
         return True
     return False
 
 
-def line_opens_selected_frame(line):
+def line_opens_selected_frame(line: str) -> bool:
     p = re.compile(r"^!====\s*(.*?)\s*====(.*)", re.VERBOSE)
     if p.match(line) is not None:
         return True
     return False
 
 
-def line_closes_frame(line):
+def line_closes_frame(line: str) -> bool:
     p = re.compile(r"^\s*\[\s*frame\s*\]>", re.VERBOSE)
     if p.match(line) is not None:
         return True
     return False
 
 
-def filter_selected_lines(lines):
+def filter_selected_lines(lines: List[str]) -> List[str]:
     selected_lines = []
 
     selected_frame_opened = False
@@ -1090,24 +1103,20 @@ def filter_selected_lines(lines):
     return selected_lines
 
 
-def convert2beamer(lines):
-    out = ""
+def convert2beamer(lines: List[str]) -> List[str]:
     selectedframemode = scan_for_selected_frames(lines)
     if selectedframemode:
-        out = convert2beamer_selected(lines)
-    else:
-        out = convert2beamer_full(lines)
-
-    return out
+        return convert2beamer_selected(lines)
+    return convert2beamer_full(lines)
 
 
-def convert2beamer_selected(lines):
+def convert2beamer_selected(lines: List[str]) -> List[str]:
     selected_lines = filter_selected_lines(lines)
     out = convert2beamer_full(selected_lines)
     return out
 
 
-def include_file(line):
+def include_file(line: str) -> Optional[str]:
     """Extract filename to include.
 
     @param line string
@@ -1120,15 +1129,14 @@ def include_file(line):
     if p.match(line):
         filename = p.sub(r"\1", line)
         return filename
-    else:
-        return None
+    return None
 
 
-def include_file_recursive(base):
-    stack = []
-    output = []
+def include_file_recursive(base: str) -> List[str]:
+    stack: List[str] = []
+    output: List[str] = []
 
-    def recurse(file_):
+    def recurse(file_: str) -> None:
         stack.append(file_)
         nowikimode = False
         codemode = False
@@ -1153,8 +1161,7 @@ def include_file_recursive(base):
                             "Loop detected while trying "
                             "to include: '%s'.\n" % include + "Stack: " + "->".join(stack)
                         )
-                    else:
-                        recurse(include)
+                    recurse(include)
                 else:
                     output.append(line)
         stack.pop()
@@ -1163,10 +1170,10 @@ def include_file_recursive(base):
     return output
 
 
-def munge_input_lines(lines):
+def munge_input_lines(lines: List[str]) -> List[str]:
     # join lines if they end with single \
     munge = False
-    new_lines = []
+    new_lines: List[str] = []
     for line in lines:
         if munge is True:
             if not line.endswith("\\") and not line.endswith("\\\\"):
@@ -1182,12 +1189,12 @@ def munge_input_lines(lines):
     return new_lines
 
 
-def convert2beamer_full(lines):
+def convert2beamer_full(lines: List[str]) -> List[str]:
     """convert to LaTeX beamer"""
     state = w2bstate()
     result = [""]  # start with one empty line as line 0
-    codebuffer = []
-    autotemplatebuffer = []
+    codebuffer: List[str] = []
+    autotemplatebuffer: List[str] = []
 
     nowikimode = False
     codemode = False
@@ -1234,20 +1241,19 @@ def convert2beamer_full(lines):
     return result
 
 
-def print_result(lines):
+def print_result(lines: List[str]) -> None:
     """print result to stdout"""
     for l in lines:
         pprint(l, file=sys.stdout)
-    return
 
 
-def redirect_stdout(outfilename):
+def redirect_stdout(outfilename: str) -> None:
     global _redirected_stdout
     outfile = open(outfilename, "w")
     _redirected_stdout = outfile
 
 
-def main(argv=None):
+def main(argv: Optional[List[str]] = None) -> int:
     """check parameters, start file processing"""
     if argv is None:
         argv = sys.argv
