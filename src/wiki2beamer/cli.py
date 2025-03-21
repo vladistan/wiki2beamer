@@ -3,11 +3,12 @@
 """Command-line interface for wiki2beamer."""
 
 import sys
+from typing import NoReturn
 
 from .main import main
 
 
-def cli():
+def cli() -> NoReturn:
     """Entry point for the command-line interface."""
     sys.exit(main())
 

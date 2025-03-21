@@ -27,37 +27,26 @@
 # Additional commits by:
 #     Valentin Haenel <valentin.haenel@gmx.de>
 #     Julius Plenz <julius@plenz.com>
+
+
 import codecs
 import optparse
 import os
 import random
 import re
 import sys
-from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, TypeVar
+from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, TypeVar, Union, cast, Type
 
 VERSIONTAG = "0.10.0"
 __version__ = VERSIONTAG
 __author__ = "Michael Rentzsch, Kai Dietrich and others"
 
-# python 2.4 compatability
-if sys.version_info >= (2, 5):
-    import hashlib
-
-    md5_module = None
-else:
-    import md5 as md5_module  # type: ignore[import, name-defined]
+import hashlib
 
 
 # python 2.4 compatability
 def md5hex(string: str) -> str:
-    if sys.version_info >= (2, 5):
-        # presume that this is valid for all pythin versions after 3
-        if sys.version_info >= (3, 0):
-            return hashlib.md5(string.encode("utf-8")).hexdigest()
-        return hashlib.md5(string).hexdigest()
-    dg = md5_module.md5()  # type: ignore[attr-defined]
-    dg.update(string)
-    return dg.hexdigest()
+    return hashlib.md5(string.encode("utf-8")).hexdigest()
 
 
 _redirected_stdout: Optional[Any] = None
@@ -137,6 +126,67 @@ def add_lines_to_cache(filename: str, lines: List[str]) -> None:
         _file_cache[filename] = lines
 
 
+def get_nowikimode(line: str, nowikimode: bool) -> Tuple[str, bool]:
+    if not nowikimode and nowikistartre.match(line) != None:
+        line = nowikistartre.sub("", line)
+        return (line, True)
+    if nowikimode and nowikiendre.match(line) != None:
+        line = nowikiendre.sub("", line)
+        return (line, False)
+    return (line, nowikimode)
+
+
+def get_codemode(line: str, codemode: bool) -> Tuple[str, bool]:
+    if not codemode and codestartre.match(line) != None:
+        line = codestartre.sub("", line)
+        return (line, True)
+    if codemode and codeendre.match(line) != None:
+        line = codeendre.sub("", line)
+        return (line, False)
+    return (line, codemode)
+
+
+def joinLines(lines: List[str]) -> List[str]:
+    """join lines ending with unescaped percent signs, unless inside codemode or nowiki mode"""
+    nowikimode = False
+    codemode = False
+    r = []  # result array
+    s = ""  # new line
+    for _l in lines:
+        (_, nowikimode) = get_nowikimode(_l, nowikimode)
+        if not nowikimode:
+            (_, codemode) = get_codemode(_l, codemode)
+
+        if not codemode:
+            l = _l.rstrip()
+        else:
+            l = _l
+
+        if (
+            not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\")
+        ) or (not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%")):
+            s = s + l[:-1]
+        else:
+            s = s + l
+            r.append(s)
+            s = ""
+
+    return r
+
+
+def read_file_to_lines(filename: str) -> List[str]:
+    """read file"""
+    try:
+        f = codecs.open(filename, "r", encoding="UTF-8")
+        lines = joinLines(f.readlines())
+        f.close()
+    except:
+        pprint("Cannot read file: %s" % filename, sys.stderr)
+        sys.exit(-2)
+
+    return lines
+
+
 def get_lines_from_cache(filename: str) -> List[str]:
     if filename in _file_cache:
         return _file_cache[filename]
@@ -149,17 +199,11 @@ def clear_file_cache() -> None:
     _file_cache.clear()
 
 
-# Define OrderedDict type
-from typing import Type
-
-DictType_T = Type[Dict[str, str]]
-
 try:
     from collections import OrderedDict
-
-    maybe_odict: DictType_T = OrderedDict  # type: ignore[assignment]
+    maybe_odict: Type[Dict[str, str]] = OrderedDict
 except ImportError:
-    maybe_odict: DictType_T = dict  # type: ignore[assignment]
+    maybe_odict = dict
 
 
 class w2bstate:
@@ -703,7 +747,7 @@ def expand_code_genanims(
         for simple_animspec in parsed_animspec:
             maxlen = max(maxlen, len(simple_animspec[1]))
 
-    out = []
+    out: List[str] = []
     fill = "".join([" " for i in range(maxlen)])
     for x in range(minoverlay, maxoverlay + 1):
         out.append(fill[:])
@@ -792,11 +836,11 @@ def expand_code_segment(result: List[str], codebuffer: List[str], state: w2bstat
         gen_anims = [
             expand_code_genanims(x[1], min_overlay, max_overlay, x[0]) for x in parsed_anims
         ]
-        anim_map = {}
+        anim_map: Dict[int, List[str]] = {}
         for i in range(max_overlay - min_overlay + 1):
             anim_map[i + min_overlay] = [x[i] for x in gen_anims]
 
-        names = []
+        names: List[str] = []
         for overlay in make_sorted(anim_map.keys()):
             # combine non_anim and anim parts
             anim_map[overlay].append("")
@@ -853,7 +897,7 @@ def parse_autotemplate(autotemplatebuffer: List[str]) -> List[Tuple[str, str]]:
     @return (list)
         a list of tuples of the form (string, string) with \command.parameters pairs
     """
-    autotemplate = []
+    autotemplate: List[Tuple[str, str]] = []
 
     for line in autotemplatebuffer:
         if len(line.lstrip()) == 0:  # ignore empty lines
@@ -883,28 +927,23 @@ def parse_usepackage(usepackage: str) -> Tuple[str, Optional[str]]:
     p = re.compile(r"^\s*(\[.*\])?\s*\{(.*)\}\s*$")
     m = p.match(usepackage)
     if m is None:
-        syntax_error("usepackage specifications have to be of the form [options]{name}", usepackage)
-        return (
-            "",
-            None,
-        )  # This line will never be reached due to syntax_error, but needed for type checking
-
+        syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
+        return ("", None)  # This line is never reached due to syntax_error, but needed for type checking
+    
     g = m.groups()
     if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
-        return (
-            "",
-            None,
-        )  # This line will never be reached due to syntax_error, but needed for type checking
-    options = g[0]
-    name = g[1].strip()
-    return (name, options)
+        return ("", None)  # This line is never reached due to syntax_error, but needed for type checking
+    else:
+        options = g[0]
+        name = g[1].strip()
+        return (name, options)
 
 
 def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tuple[str, str]]:
     usepackages: Dict[str, Optional[str]] = {}  # packagename : options
     documentclass = ""
-    titleframe: str = "False"
+    titleframe = False
 
     merged: List[Tuple[str, str]] = []
     for template in autotemplates:
@@ -913,13 +952,13 @@ def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tupl
                 (name, options) = parse_usepackage(command[1])
                 usepackages[name] = options
             elif command[0] == "titleframe":
-                titleframe = command[1]
+                titleframe = parse_bool(command[1])
             elif command[0] == "documentclass":
                 documentclass = command[1]
             else:
                 merged.append(command)
 
-    autotemplate = []
+    autotemplate: List[Tuple[str, str]] = []
     autotemplate.append(("documentclass", documentclass))
     for name, options in usepackages.items():
         if options is not None and options.strip() != "":
@@ -927,7 +966,7 @@ def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tupl
         else:
             string = "{%s}" % name
         autotemplate.append(("usepackage", string))
-    autotemplate.append(("titleframe", titleframe))
+    autotemplate.append(("titleframe", str(titleframe)))
 
     autotemplate.extend(merged)
 
@@ -959,9 +998,7 @@ def expand_autotemplate_gen_opening(autotemplate: List[Tuple[str, str]]) -> str:
     return "\n".join(out)
 
 
-def expand_autotemplate_opening(
-    result: List[str], templatebuffer: List[str], state: w2bstate
-) -> None:
+def expand_autotemplate_opening(result: List[str], templatebuffer: List[str], state: w2bstate) -> None:
     my_autotemplate = parse_autotemplate(templatebuffer)
     the_autotemplate = unify_autotemplates([autotemplate, my_autotemplate])
 
@@ -983,67 +1020,6 @@ def get_autotemplatemode(line: str, autotemplatemode: bool) -> Tuple[str, bool]:
         line = autotemplateend.sub("", line)
         return (line, False)
     return (line, autotemplatemode)
-
-
-def get_nowikimode(line: str, nowikimode: bool) -> Tuple[str, bool]:
-    if not nowikimode and nowikistartre.match(line) != None:
-        line = nowikistartre.sub("", line)
-        return (line, True)
-    if nowikimode and nowikiendre.match(line) != None:
-        line = nowikiendre.sub("", line)
-        return (line, False)
-    return (line, nowikimode)
-
-
-def get_codemode(line: str, codemode: bool) -> Tuple[str, bool]:
-    if not codemode and codestartre.match(line) != None:
-        line = codestartre.sub("", line)
-        return (line, True)
-    if codemode and codeendre.match(line) != None:
-        line = codeendre.sub("", line)
-        return (line, False)
-    return (line, codemode)
-
-
-def joinLines(lines: List[str]) -> List[str]:
-    """join lines ending with unescaped percent signs, unless inside codemode or nowiki mode"""
-    nowikimode = False
-    codemode = False
-    r = []  # result array
-    s = ""  # new line
-    for _l in lines:
-        (_, nowikimode) = get_nowikimode(_l, nowikimode)
-        if not nowikimode:
-            (_, codemode) = get_codemode(_l, codemode)
-
-        if not codemode:
-            l = _l.rstrip()
-        else:
-            l = _l
-
-        if (
-            not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\")
-        ) or (not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%")):
-            s = s + l[:-1]
-        else:
-            s = s + l
-            r.append(s)
-            s = ""
-
-    return r
-
-
-def read_file_to_lines(filename: str) -> List[str]:
-    """read file"""
-    try:
-        f = codecs.open(filename, "r", encoding="UTF-8")
-        lines = joinLines(f.readlines())
-        f.close()
-    except:
-        pprint("Cannot read file: %s" % filename, sys.stderr)
-        sys.exit(-2)
-
-    return lines
 
 
 def scan_for_selected_frames(lines: List[str]) -> bool:
@@ -1078,7 +1054,7 @@ def line_closes_frame(line: str) -> bool:
 
 
 def filter_selected_lines(lines: List[str]) -> List[str]:
-    selected_lines = []
+    selected_lines: List[str] = []
 
     selected_frame_opened = False
     frame_closed = True
@@ -1104,10 +1080,14 @@ def filter_selected_lines(lines: List[str]) -> List[str]:
 
 
 def convert2beamer(lines: List[str]) -> List[str]:
+    out: List[str] = []
     selectedframemode = scan_for_selected_frames(lines)
     if selectedframemode:
-        return convert2beamer_selected(lines)
-    return convert2beamer_full(lines)
+        out = convert2beamer_selected(lines)
+    else:
+        out = convert2beamer_full(lines)
+
+    return out
 
 
 def convert2beamer_selected(lines: List[str]) -> List[str]:
@@ -1192,7 +1172,7 @@ def munge_input_lines(lines: List[str]) -> List[str]:
 def convert2beamer_full(lines: List[str]) -> List[str]:
     """convert to LaTeX beamer"""
     state = w2bstate()
-    result = [""]  # start with one empty line as line 0
+    result: List[str] = [""]  # start with one empty line as line 0
     codebuffer: List[str] = []
     autotemplatebuffer: List[str] = []
 
@@ -1253,11 +1233,8 @@ def redirect_stdout(outfilename: str) -> None:
     _redirected_stdout = outfile
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: List[str]) -> None:
     """check parameters, start file processing"""
-    if argv is None:
-        argv = sys.argv
-
     usage = "%prog [options] [input1.txt [input2.txt ...]] > output.tex"
     version = "%prog (http://wiki2beamer.sf.net), version: " + VERSIONTAG
 
@@ -1269,12 +1246,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         metavar="FILE",
         help="write output to FILE instead of stdout",
     )
-    opts, args = parser.parse_args(argv[1:])
+    opts, args = parser.parse_args()
 
     if opts.output is not None:
         redirect_stdout(opts.output)
 
-    input_files = []
+    input_files: List[str] = []
     if not sys.stdin.isatty():
         _file_cache["stdin"] = joinLines(sys.stdin.readlines())
         input_files.append("stdin")
@@ -1282,7 +1259,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         parser.error("You supplied no files to convert!")
 
     input_files += args
-    lines = []
+    lines: List[str] = []
     for file_ in input_files:
         lines += include_file_recursive(file_)
 
@@ -1291,8 +1268,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     lines = convert2beamer(lines)
     print_result(lines)
 
-    return 0
-
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main(sys.argv)
