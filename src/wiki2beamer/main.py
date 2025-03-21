@@ -1247,8 +1247,11 @@ def redirect_stdout(outfilename):
     _redirected_stdout = outfile
 
 
-def main(argv):
+def main(argv=None):
     """check parameters, start file processing"""
+    if argv is None:
+        argv = sys.argv
+
     usage = "%prog [options] [input1.txt [input2.txt ...]] > output.tex"
     version = "%prog (http://wiki2beamer.sf.net), version: " + VERSIONTAG
 
@@ -1260,7 +1263,7 @@ def main(argv):
         metavar="FILE",
         help="write output to FILE instead of stdout",
     )
-    opts, args = parser.parse_args()
+    opts, args = parser.parse_args(argv[1:])
 
     if opts.output is not None:
         redirect_stdout(opts.output)
@@ -1282,6 +1285,8 @@ def main(argv):
     lines = convert2beamer(lines)
     print_result(lines)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main(sys.argv)
+    sys.exit(main())
