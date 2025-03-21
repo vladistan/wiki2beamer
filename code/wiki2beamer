@@ -40,25 +40,12 @@ VERSIONTAG = "0.10.0"
 __version__ = VERSIONTAG
 __author__ = "Michael Rentzsch, Kai Dietrich and others"
 
-# python 2.4 compatability
-if sys.version_info >= (2, 5):
-    import hashlib
-else:
-    import md5
+import hashlib
 
 
 # python 2.4 compatability
 def md5hex(string):
-    if sys.version_info >= (2, 5):
-        # presume that this is valid for all pythin versions after 3
-        if sys.version_info >= (3, 0):
-            return hashlib.md5(string.encode("utf-8")).hexdigest()
-        else:
-            return hashlib.md5(string).hexdigest()
-    else:
-        dg = md5.md5()
-        dg.update(string)
-        return dg.hexdigest()
+    return hashlib.md5(string.encode("utf-8")).hexdigest()
 
 
 _redirected_stdout = None
