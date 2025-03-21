@@ -16,13 +16,14 @@
 
 from distutils.core import setup
 
-setup(name='wiki2beamer',
-    version='0.10.0',
-    scripts=['wiki2beamer'],
-    description='Create LaTeX-beamer presentations with a wiki syntax',
-    author='Michael Rentzsch, Kai Dietrich and others',
-    author_email='mmichael.rentzsch@repc.de, mail@cleeus.de',
-    maintainer='Valentin Haenel',
-    maintainer_email='valentin@haenel.co',
-    url='https://wiki2beamer.github.io',
+setup(
+    name="wiki2beamer",
+    version="0.10.0",
+    scripts=["wiki2beamer"],
+    description="Create LaTeX-beamer presentations with a wiki syntax",
+    author="Michael Rentzsch, Kai Dietrich and others",
+    author_email="mmichael.rentzsch@repc.de, mail@cleeus.de",
+    maintainer="Valentin Haenel",
+    maintainer_email="valentin@haenel.co",
+    url="https://wiki2beamer.github.io",
 )

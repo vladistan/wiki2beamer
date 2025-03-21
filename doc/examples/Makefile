@@ -13,7 +13,7 @@ all: $(patsubst %.wiki, %.pdf, $(WIKIFILES))
 
 
 %.pdf: %.tex
-	@echo "Running pdflatex in $<"	
+	@echo "Running pdflatex in $<"
 	pdflatex $<
 	pdflatex $<
 
@@ -23,9 +23,8 @@ all: $(patsubst %.wiki, %.pdf, $(WIKIFILES))
 
 proper: clean
 	$(RM) *.pdf
-	
+
 
 clean:
 	$(RM) *.aux *.log *.nav *.out *.snm *.toc
 	$(RM) $(patsubst %.wiki, %.tex, $(WIKIFILES))
-
