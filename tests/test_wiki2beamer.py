@@ -524,15 +524,20 @@ class TestConvert2Beamer(unittest.TestCase):
     def test_autotemplate(self):
         lines = [
             "<[autotemplate]\n",
+            "usepackage=[utf8]{inputenc}\n",
             "title={Test}\n",
             "[autotemplate]>\n",
             "\n",
             "== Hello ==\n",
         ]
-        expected = ["\\documentclass{beamer}"]
+        expected = [
+            "\\documentclass{beamer}",
+            "usepackage[utf8]{inputenc}",
+        ]
 
         received = convert2beamer(lines)
         assert expected[0] in received[1]
+        assert expected[1] in received[1]
 
 
 class TestFileCache(unittest.TestCase):

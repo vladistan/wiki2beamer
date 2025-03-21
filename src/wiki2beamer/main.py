@@ -936,7 +936,9 @@ def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tupl
     autotemplate: List[Tuple[str, str]] = []
     autotemplate.append(("documentclass", documentclass))
     for name, options in usepackages.items():
-        string = f"{options} {name}" if options is not None and options.strip() else f"{{{name}}}"
+        string = (
+            f"{options}{{{name}}}" if options is not None and options.strip() else f"{{{name}}}"
+        )
         autotemplate.append(("usepackage", string))
     autotemplate.append(("titleframe", str(titleframe)))
 

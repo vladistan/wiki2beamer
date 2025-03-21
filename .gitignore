@@ -46,3 +46,8 @@ ENV/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+/doc/examples/advanced.tex
+/doc/examples/beamer.tex
+/doc/examples/graphics.tex
+/doc/examples/version0_4.tex
+/doc/examples/version0_7.tex
