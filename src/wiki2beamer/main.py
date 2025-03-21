@@ -30,37 +30,37 @@
 
 
 import codecs
+import hashlib
 import optparse
 import os
 import random
 import re
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Match, Optional, Pattern, Tuple, Type, TypeVar
 
 VERSIONTAG = "0.10.0"
 __version__ = VERSIONTAG
 __author__ = "Michael Rentzsch, Kai Dietrich and others"
 
-import hashlib
-
 
 # python 2.4 compatability
 def md5hex(string: str) -> str:
-    return hashlib.md5(string.encode("utf-8")).hexdigest()
+    return hashlib.md5(string.encode("utf-8")).hexdigest()  # noqa: S324
 
 
 _redirected_stdout: Optional[Any] = None
 _redirected_stderr: Optional[Any] = None
 
 
-def pprint(string: str, file: Any = sys.stdout, eol: bool = True) -> None:
+def pprint(string: str, file: Any = sys.stdout, eol: bool = True) -> None:  # noqa: FBT001, FBT002 # TODO: Fix this
     """portable version of print which directly writes into the given stream"""
     if file == sys.stdout and _redirected_stdout is not None:
         file = _redirected_stdout
     if file == sys.stderr and _redirected_stderr is not None:
         file = _redirected_stderr
 
-    if file == sys.stderr or file == sys.stdout:
+    if file in {sys.stderr, sys.stdout}:
         file.write(string)
     else:
         file.write(string.encode("utf-8"))
@@ -76,8 +76,8 @@ def mydebug(message: str) -> None:
 
 
 def syntax_error(message: str, code: str) -> None:
-    pprint("syntax error: %s" % message, file=sys.stderr)
-    pprint("\tcode:\n%s" % code, file=sys.stderr)
+    pprint(f"syntax error: {message}", file=sys.stderr)
+    pprint(f"\tcode:\n{code}", file=sys.stderr)
     sys.exit(-3)
 
 
@@ -126,27 +126,27 @@ def add_lines_to_cache(filename: str, lines: List[str]) -> None:
         _file_cache[filename] = lines
 
 
-def get_nowikimode(line: str, nowikimode: bool) -> Tuple[str, bool]:
-    if not nowikimode and nowikistartre.match(line) != None:
+def get_nowikimode(line: str, nowikimode: bool) -> Tuple[str, bool]:  # noqa: FBT001 # TODO: Fix this
+    if not nowikimode and nowikistartre.match(line) is not None:
         line = nowikistartre.sub("", line)
         return (line, True)
-    if nowikimode and nowikiendre.match(line) != None:
+    if nowikimode and nowikiendre.match(line) is not None:
         line = nowikiendre.sub("", line)
         return (line, False)
     return (line, nowikimode)
 
 
-def get_codemode(line: str, codemode: bool) -> Tuple[str, bool]:
-    if not codemode and codestartre.match(line) != None:
+def get_codemode(line: str, codemode: bool) -> Tuple[str, bool]:  # noqa: FBT001 # TODO: Fix this
+    if not codemode and codestartre.match(line) is not None:
         line = codestartre.sub("", line)
         return (line, True)
-    if codemode and codeendre.match(line) != None:
+    if codemode and codeendre.match(line) is not None:
         line = codeendre.sub("", line)
         return (line, False)
     return (line, codemode)
 
 
-def joinLines(lines: List[str]) -> List[str]:
+def joinLines(lines: List[str]) -> List[str]:  # noqa: N802 # TODO: Fix this
     """join lines ending with unescaped percent signs, unless inside codemode or nowiki mode"""
     nowikimode = False
     codemode = False
@@ -157,17 +157,14 @@ def joinLines(lines: List[str]) -> List[str]:
         if not nowikimode:
             (_, codemode) = get_codemode(_l, codemode)
 
-        if not codemode:
-            l = _l.rstrip()
-        else:
-            l = _l
+        l = _l.rstrip() if not codemode else _l
 
         if (
             not (nowikimode or codemode) and (len(l) > 1) and (l[-1] == "%") and (l[-2] != "\\")
         ) or (not (nowikimode or codemode) and (len(l) == 1) and (l[-1] == "%")):
-            s = s + l[:-1]
+            s += l[:-1]
         else:
-            s = s + l
+            s += l
             r.append(s)
             s = ""
 
@@ -180,8 +177,8 @@ def read_file_to_lines(filename: str) -> List[str]:
         f = codecs.open(filename, "r", encoding="UTF-8")
         lines = joinLines(f.readlines())
         f.close()
-    except:
-        pprint("Cannot read file: %s" % filename, sys.stderr)
+    except Exception:  # noqa: BLE001 # TODO: Fix this
+        pprint(f"Cannot read file: {filename}", sys.stderr)
         sys.exit(-2)
 
     return lines
@@ -207,7 +204,7 @@ except ImportError:
     maybe_odict = dict
 
 
-class w2bstate:
+class w2bstate:  # noqa: N801 # TODO: Fix this
     def __init__(self) -> None:
         self.frame_opened = False
         self.enum_item_level = ""
@@ -239,10 +236,7 @@ def transform_itemenums(string: str, state: w2bstate) -> str:
     # handle itemizing/enumerations
     p = re.compile(r"^([\*\#]+).*$")
     m = p.match(string)
-    if m is None:
-        my_enum_item_level = ""
-    else:
-        my_enum_item_level = m.group(1)
+    my_enum_item_level = "" if m is None else m.group(1)
 
     # trivial: old level = new level
     if my_enum_item_level == state.enum_item_level:
@@ -255,29 +249,27 @@ def transform_itemenums(string: str, state: w2bstate) -> str:
             and (len(my_enum_item_level) > common + 1)
             and (state.enum_item_level[common + 1] == my_enum_item_level[common + 1])
         ):
-            common = common + 1
+            common += 1
 
         # close enum_item_level environments from back to front
         for i in range(len(state.enum_item_level) - 1, common, -1):
             if state.enum_item_level[i] == "*":
-                preamble = preamble + "\\end{itemize}\n"
+                preamble += "\\end{itemize}\n"
             elif state.enum_item_level[i] == "#":
-                preamble = preamble + "\\end{enumerate}\n"
+                preamble += "\\end{enumerate}\n"
 
         # open my_enum_item_level environments from front to back
         for i in range(common + 1, len(my_enum_item_level)):
             if my_enum_item_level[i] == "*":
-                preamble = preamble + "\\begin{itemize}\n"
+                preamble += "\\begin{itemize}\n"
             elif my_enum_item_level[i] == "#":
-                preamble = preamble + "\\begin{enumerate}\n"
+                preamble += "\\begin{enumerate}\n"
     state.enum_item_level = my_enum_item_level
 
     # now, substitute item markers
     p = re.compile(r"^([\*\#]+)((?:\[[^\]*]\])?)\s*(.*)$")
     _string = p.sub(r"  \\item\2 \3", string)
-    string = preamble + _string
-
-    return string
+    return preamble + _string
 
 
 def transform_define_foothead(string: str, state: w2bstate) -> str:
@@ -298,14 +290,13 @@ def transform_define_foothead(string: str, state: w2bstate) -> str:
 def transform_detect_manual_frameclose(string: str, state: w2bstate) -> str:
     """detect manual closing of frames"""
     p = re.compile(r"\[\s*frame\s*\]>")
-    if state.frame_opened:
-        if p.match(string) is not None:
-            state.frame_opened = False
+    if state.frame_opened and p.match(string) is not None:
+        state.frame_opened = False
     return string
 
 
 def get_frame_closing(state: w2bstate) -> str:
-    return " %s \n\\end{frame}\n" % state.frame_footer
+    return f" {state.frame_footer} \n\\end{{frame}}\n"
 
 
 def transform_spec_to_title_slide(string: str, state: w2bstate) -> str:
@@ -330,8 +321,8 @@ def transform_spec_to_title_slide(string: str, state: w2bstate) -> str:
 
 def transform_h4_to_frame(string: str, state: w2bstate) -> str:
     """headings (3) to frames"""
-    frame_opening = r"\\begin{frame}\2\n \\frametitle{\1}\n %s \n" % escape_resub(
-        state.next_frame_header
+    frame_opening = (
+        rf"\\begin{{frame}}\2\n \\frametitle{{\1}}\n {escape_resub(state.next_frame_header)} \n"
     )
     frame_closing = escape_resub(get_frame_closing(state))
 
@@ -381,8 +372,7 @@ def transform_h2_to_sec(string: str, state: w2bstate) -> str:
 
 def transform_replace_headfoot(string: str, state: w2bstate) -> str:
     string = string.replace("<---FRAMEHEADER--->", state.frame_header)
-    string = string.replace("<---FRAMEFOOTER--->", state.frame_footer)
-    return string
+    return string.replace("<---FRAMEFOOTER--->", state.frame_footer)
 
 
 def transform_environments(string: str, state: w2bstate) -> str:
@@ -406,30 +396,25 @@ def transform_environments(string: str, state: w2bstate) -> str:
     m = re.match(p, string)
     if m is not None and m.group(1).strip() != "frame":
         del state.active_envs[m.group(1).strip()]
-    string = p.sub(r"\\end{\1}", string)
-
-    return string
+    return p.sub(r"\\end{\1}", string)
 
 
 def transform_columns(string: str) -> str:
     """columns"""
     p = re.compile(r"^\[\[\[(.*?)\]\]\]", re.VERBOSE)
-    string = p.sub(r"\\column{\1}", string)
-    return string
+    return p.sub(r"\\column{\1}", string)
 
 
 def transform_boldfont(string: str) -> str:
     """bold font"""
     p = re.compile("'''(.*?)'''", re.VERBOSE)
-    string = p.sub(r"\\textbf{\1}", string)
-    return string
+    return p.sub(r"\\textbf{\1}", string)
 
 
 def transform_italicfont(string: str) -> str:
     """italic font"""
     p = re.compile("''(.*?)''", re.VERBOSE)
-    string = p.sub(r"\\emph{\1}", string)
-    return string
+    return p.sub(r"\\emph{\1}", string)
 
 
 def _transform_mini_parser(character: str, replacement: str, string: str) -> str:
@@ -494,15 +479,13 @@ def transform_colors(string: str, state: w2bstate) -> str:
     p = re.compile(r"(\<\<\<)(.*?)\>\>\>", re.VERBOSE)
     graphics = list(p.finditer(string))
     p = re.compile("_([^_\\\\{}]*?)_([^_]*?[^_\\\\{}])_", re.VERBOSE)
-    string = p.sub(maybe_replace, string)
-    return string
+    return p.sub(maybe_replace, string)
 
 
 def transform_footnotes(string: str) -> str:
     """footnotes"""
     p = re.compile(r"\(\(\((.*?)\)\)\)", re.VERBOSE)
-    string = p.sub(r"\\footnote{\1}", string)
-    return string
+    return p.sub(r"\\footnote{\1}", string)
 
 
 def transform_graphics(string: str) -> str:
@@ -510,8 +493,7 @@ def transform_graphics(string: str) -> str:
     p = re.compile(r"\<\<\<(.*?),(.*?)\>\>\>", re.VERBOSE)
     string = p.sub(r"\\includegraphics[\2]{\1}", string)
     p = re.compile(r"\<\<\<(.*?)\>\>\>", re.VERBOSE)
-    string = p.sub(r"\\includegraphics{\1}", string)
-    return string
+    return p.sub(r"\\includegraphics{\1}", string)
 
 
 def transform_substitutions(string: str) -> str:
@@ -527,36 +509,31 @@ def transform_substitutions(string: str) -> str:
     p = re.compile(r"(\s):-\)(\s)", re.VERBOSE)
     string = p.sub(r"\1\\smiley\2", string)
     p = re.compile(r"(\s):-\((\s)", re.VERBOSE)
-    string = p.sub(r"\1\\frownie\2", string)
-    return string
+    return p.sub(r"\1\\frownie\2", string)
 
 
 def transform_vspace(string: str) -> str:
     """vspace"""
     p = re.compile(r"^\s*--(.*)--\s*$")
-    string = p.sub(r"\n\\vspace{\1}\n", string)
-    return string
+    return p.sub(r"\n\\vspace{\1}\n", string)
 
 
 def transform_vspacestar(string: str) -> str:
     """vspace*"""
     p = re.compile(r"^\s*--\*(.*)--\s*$")
-    string = p.sub(r"\n\\vspace*{\1}\n", string)
-    return string
+    return p.sub(r"\n\\vspace*{\1}\n", string)
 
 
 def transform_uncover(string: str) -> str:
     """uncover"""
     p = re.compile(r"\+<(.*)>\s*{(.*)")  # +<1-2>{.... -> \uncover<1-2>{....
-    string = p.sub(r"\\uncover<\1>{\2", string)
-    return string
+    return p.sub(r"\\uncover<\1>{\2", string)
 
 
 def transform_only(string: str) -> str:
     """only"""
     p = re.compile(r"-<(.*)>\s*{(.*)")  # -<1-2>{.... -> \only<1-2>{....
-    string = p.sub(r"\\only<\1>{\2", string)
-    return string
+    return p.sub(r"\\only<\1>{\2", string)
 
 
 def transform_detect_display_math(string: str, state: w2bstate) -> str:
@@ -594,25 +571,23 @@ def transform(string: str, state: w2bstate) -> str:
     string = transform_uncover(string)
     string = transform_only(string)
 
-    string = transform_itemenums(string, state)
-
-    return string
+    return transform_itemenums(string, state)
 
 
 def expand_code_make_defverb(content: str, name: str) -> str:
-    return "\\defverbatim[colored]\\%s{\n%s\n}" % (name, content)
+    return f"\\defverbatim[colored]\\{name}{{\n{content}\n}}"
 
 
 def expand_code_make_lstlisting(content: str, options: str) -> str:
-    return "\\begin{lstlisting}%s%s\\end{lstlisting}" % (options, content)
+    return f"\\begin{{lstlisting}}{options}{content}\\end{{lstlisting}}"
 
 
 def expand_code_search_escape_sequences(code: str) -> Tuple[str, str]:
     esc_open = "1"
     esc_close = "2"
     while code.find(esc_open) != -1 or code.find(esc_close) != -1:
-        esc_open = esc_open + chr(random.randint(48, 57))
-        esc_close = esc_close + chr(random.randint(48, 57))
+        esc_open += chr(random.randint(48, 57))
+        esc_close += chr(random.randint(48, 57))
 
     return (esc_open, esc_close)
 
@@ -676,8 +651,7 @@ def expand_code_parse_overlayspec(overlayspec: str) -> List[int]:
             overlays.append(num)
 
     # make unique
-    overlays = make_unique(overlays)
-    return overlays
+    return make_unique(overlays)
 
 
 def expand_code_parse_simpleanimspec(animspec: str) -> List[Tuple[int, str]]:
@@ -710,7 +684,7 @@ def expand_code_parse_animspec(animspec: str) -> Tuple[str, List[Tuple[int, str]
     animspec = animspec.replace("\\]", esc_close)
 
     p = re.compile(r"\[|\]\[|\]")
-    simple_specs = ["[%s]" % s for s in [s for s in p.split(animspec) if len(s.strip()) > 0]]
+    simple_specs = [f"[{s}]" for s in [s for s in p.split(animspec) if len(s.strip()) > 0]]
 
     # unescape
     simple_specs = [s.replace(esc_open, "\\[").replace(esc_close, "\\]") for s in simple_specs]
@@ -750,8 +724,7 @@ def expand_code_genanims(
 
     out: List[str] = []
     fill = "".join([" " for i in range(maxlen)])
-    for x in range(minoverlay, maxoverlay + 1):
-        out.append(fill[:])
+    out = [fill[:] for x in range(minoverlay, maxoverlay + 1)]
 
     for simple_animspec in parsed_animspec:
         out[simple_animspec[0] - minoverlay] = simple_animspec[1]
@@ -779,8 +752,7 @@ def expand_code_getname(code: str) -> str:
         "f": "p",
     }
     hexhash = md5hex(code)
-    alphahash = "".join(hex2alpha_table[x] for x in hexhash)
-    return alphahash
+    return "".join(hex2alpha_table[x] for x in hexhash)
 
 
 def expand_code_makeoverprint(names: List[str], minoverlay: int) -> str:
@@ -830,10 +802,7 @@ def expand_code_segment(result: List[str], codebuffer: List[str], state: w2bstat
         parsed_anim_lists = [x[1] for x in parsed_anims]
         max_overlay = expand_code_getmaxoverlay(parsed_anim_lists)
         # if there is unanimated code, use 0 as the starting overlay
-        if len(list(non_anim)) > 0:
-            min_overlay = 1
-        else:
-            min_overlay = expand_code_getminoverlay(parsed_anim_lists)
+        min_overlay = 1 if len(list(non_anim)) > 0 else expand_code_getminoverlay(parsed_anim_lists)
         gen_anims = [
             expand_code_genanims(x[1], min_overlay, max_overlay, x[0]) for x in parsed_anims
         ]
@@ -864,7 +833,7 @@ def expand_code_segment(result: List[str], codebuffer: List[str], state: w2bstat
         code = code.replace("\\[", "[").replace("\\]", "]")
         (name, expanded_code) = expand_code_get_unique_name(state.defverbs, code, lstparams)
         state.defverbs[name] = expanded_code
-        result.append("\n\\%s\n" % name)
+        result.append(f"\n\\{name}\n")
 
 
 def expand_code_defverbs(result: List[str], state: w2bstate) -> None:
@@ -881,9 +850,9 @@ def get_autotemplate_closing() -> str:
 def parse_bool(string: str) -> bool:
     boolean = False
 
-    if string == "True" or string == "true" or string == "1":
+    if string in {"True", "true", "1"}:
         boolean = True
-    elif string == "False" or string == "false" or string == "0":
+    elif string in {"False", "false", "0"}:
         boolean = False
     else:
         syntax_error("Boolean expected (True/true/1 or False/false/0)", string)
@@ -935,7 +904,7 @@ def parse_usepackage(usepackage: str) -> Tuple[str, Optional[str]]:
         )  # This line is never reached due to syntax_error, but needed for type checking
 
     g = m.groups()
-    if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):
+    if len(g) < 2 or len(g) > 2 or (g[1] == None and g[1].strip() != ""):  # noqa: E711, PLC1901 # TODO: Fix this
         syntax_error("usepackage specifications have to be of the form [%s]{%s}", usepackage)
         return (
             "",
@@ -967,10 +936,7 @@ def unify_autotemplates(autotemplates: List[List[Tuple[str, str]]]) -> List[Tupl
     autotemplate: List[Tuple[str, str]] = []
     autotemplate.append(("documentclass", documentclass))
     for name, options in usepackages.items():
-        if options is not None and options.strip() != "":
-            string = "%s{%s}" % (options, name)
-        else:
-            string = "{%s}" % name
+        string = f"{options} {name}" if options is not None and options.strip() else f"{{{name}}}"
         autotemplate.append(("usepackage", string))
     autotemplate.append(("titleframe", str(titleframe)))
 
@@ -995,11 +961,11 @@ def expand_autotemplate_gen_opening(autotemplate: List[Tuple[str, str]]) -> str:
         elif item[0] == "titleframeopts":
             titleframeopts = item[1]
         else:
-            out.append("\\%s%s" % item)
+            out.append("\\{}{}".format(*item))
 
     out.append("\n\\begin{document}\n")
     if titleframe:
-        out.append("\n\\frame%s{\\titlepage}\n" % titleframeopts)
+        out.append(f"\n\\frame{titleframeopts}{{\\titlepage}}\n")
 
     return "\n".join(out)
 
@@ -1011,20 +977,18 @@ def expand_autotemplate_opening(
     the_autotemplate = unify_autotemplates([autotemplate, my_autotemplate])
 
     opening = expand_autotemplate_gen_opening(the_autotemplate)
-
-    result.append(opening)
-    result.append("")
+    result.extend([opening, ""])
     state.code_pos = len(result)
     state.autotemplate_opened = True
 
 
-def get_autotemplatemode(line: str, autotemplatemode: bool) -> Tuple[str, bool]:
+def get_autotemplatemode(line: str, autotemplatemode: bool) -> Tuple[str, bool]:  # noqa: FBT001
     autotemplatestart = re.compile(r"^<\[\s*autotemplate\s*\]")
     autotemplateend = re.compile(r"^\[\s*autotemplate\s*\]>")
-    if not autotemplatemode and autotemplatestart.match(line) != None:
+    if not autotemplatemode and autotemplatestart.match(line) is not None:
         line = autotemplatestart.sub("", line)
         return (line, True)
-    if autotemplatemode and autotemplateend.match(line) != None:
+    if autotemplatemode and autotemplateend.match(line) is not None:
         line = autotemplateend.sub("", line)
         return (line, False)
     return (line, autotemplatemode)
@@ -1042,23 +1006,17 @@ def scan_for_selected_frames(lines: List[str]) -> bool:
 
 def line_opens_unselected_frame(line: str) -> bool:
     p = re.compile(r"^====\s*(.*?)\s*====(.*)", re.VERBOSE)
-    if p.match(line) is not None:
-        return True
-    return False
+    return p.match(line) is not None
 
 
 def line_opens_selected_frame(line: str) -> bool:
     p = re.compile(r"^!====\s*(.*?)\s*====(.*)", re.VERBOSE)
-    if p.match(line) is not None:
-        return True
-    return False
+    return p.match(line) is not None
 
 
 def line_closes_frame(line: str) -> bool:
     p = re.compile(r"^\s*\[\s*frame\s*\]>", re.VERBOSE)
-    if p.match(line) is not None:
-        return True
-    return False
+    return p.match(line) is not None
 
 
 def filter_selected_lines(lines: List[str]) -> List[str]:
@@ -1088,20 +1046,13 @@ def filter_selected_lines(lines: List[str]) -> List[str]:
 
 
 def convert2beamer(lines: List[str]) -> List[str]:
-    out: List[str] = []
     selectedframemode = scan_for_selected_frames(lines)
-    if selectedframemode:
-        out = convert2beamer_selected(lines)
-    else:
-        out = convert2beamer_full(lines)
-
-    return out
+    return convert2beamer_selected(lines) if selectedframemode else convert2beamer_full(lines)
 
 
 def convert2beamer_selected(lines: List[str]) -> List[str]:
     selected_lines = filter_selected_lines(lines)
-    out = convert2beamer_full(selected_lines)
-    return out
+    return convert2beamer_full(selected_lines)
 
 
 def include_file(line: str) -> Optional[str]:
@@ -1115,8 +1066,7 @@ def include_file(line: str) -> Optional[str]:
     """
     p = re.compile(r"\>\>\>(.*?)\<\<\<", re.VERBOSE)
     if p.match(line):
-        filename = p.sub(r"\1", line)
-        return filename
+        return p.sub(r"\1", line)
     return None
 
 
@@ -1147,7 +1097,7 @@ def include_file_recursive(base: str) -> List[str]:
                     if include in stack:
                         raise IncludeLoopException(
                             "Loop detected while trying "
-                            "to include: '%s'.\n" % include + "Stack: " + "->".join(stack)
+                            f"to include: '{include}'.\n" + "Stack: " + "->".join(stack)
                         )
                     recurse(include)
                 else:
@@ -1231,17 +1181,17 @@ def convert2beamer_full(lines: List[str]) -> List[str]:
 
 def print_result(lines: List[str]) -> None:
     """print result to stdout"""
-    for l in lines:
-        pprint(l, file=sys.stdout)
+    for line in lines:
+        pprint(line, file=sys.stdout)
 
 
 def redirect_stdout(outfilename: str) -> None:
-    global _redirected_stdout
-    outfile = open(outfilename, "w")
+    global _redirected_stdout  # noqa: PLW0603
+    outfile = Path(outfilename).open("w", encoding="utf-8")  # noqa: SIM115
     _redirected_stdout = outfile
 
 
-def main(argv: List[str]) -> None:
+def main(argv: List[str]) -> None:  # noqa: ARG001
     """check parameters, start file processing"""
     usage = "%prog [options] [input1.txt [input2.txt ...]] > output.tex"
     version = "%prog (http://wiki2beamer.sf.net), version: " + VERSIONTAG

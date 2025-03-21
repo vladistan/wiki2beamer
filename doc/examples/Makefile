@@ -1,5 +1,3 @@
-#!/usr/bin/make
-
 .PRECIOUS: %.tex
 
 WIKIFILES=$(wildcard *.wiki)

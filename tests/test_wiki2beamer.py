@@ -14,10 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with wiki2beamer.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import random
 import re
 import unittest
+from pathlib import Path
+
+import pytest
 
 from wiki2beamer.main import (
     add_lines_to_cache,
@@ -183,7 +185,7 @@ class TestTransform(unittest.TestCase):
 
     @unittest.skip("skip this for now")
     def test_color_interferes_with_math(self):
-        input = """==== Title ====
+        text = """==== Title ====
 $$
 A := {a_1, a_2, ..., a_i}
 $$
@@ -198,52 +200,49 @@ A := {a_1, a_2, ..., a_i}
 $$
 """
 
-        assert transform(input, self.state) == expected
+        assert transform(text, self.state) == expected
 
     def test_color_interferes_with_equation(self):
-        input = r"""A := {a_1, a_2, ..., a_i}"""
+        text = r"""A := {a_1, a_2, ..., a_i}"""
 
         expected = r"""A := {a_1, a_2, ..., a_i}"""
 
         transform("<[equation]", self.state)
         assert "equation" in self.state.active_envs
-        assert transform(input, self.state) == expected
+        assert transform(text, self.state) == expected
         transform("[equation]>", self.state)
 
 
 class TestExpandCode(unittest.TestCase):
     def test_search_escape_sequences_basic(self):
         code = 'System435.out.println("foo");123System.ou12t.println234("foo");System.23out.23456println("foo");S237yst28em.out.pr18intln("foo");'
-        (open, close) = expand_code_search_escape_sequences(code)
-        assert code.find(open) == -1
-        assert code.find(close) == -1
+        (start_tag, end_tag) = expand_code_search_escape_sequences(code)
+        assert code.find(start_tag) == -1
+        assert code.find(end_tag) == -1
 
     def test_search_escape_sequences_short(self):
         code = "12"
-        (open, close) = expand_code_search_escape_sequences(code)
-        assert code.find(open) == -1
-        assert code.find(close) == -1
+        (start_tag, end_tag) = expand_code_search_escape_sequences(code)
+        assert code.find(start_tag) == -1
+        assert code.find(end_tag) == -1
 
     def test_search_escape_sequences_veryshort(self):
         code = ""
-        (open, close) = expand_code_search_escape_sequences(code)
-        assert code.find(open) == -1
-        assert code.find(close) == -1
+        (start_tag, end_tag) = expand_code_search_escape_sequences(code)
+        assert code.find(start_tag) == -1
+        assert code.find(end_tag) == -1
 
     def test_search_escape_sequences_large(self):
-        code = []
-        for i in range(10000):
-            code.append(chr(random.randint(48, 57)))
-        code = "".join(code)
+        code = "".join([chr(random.randint(48, 57)) for i in range(10000)])
 
-        (open, close) = expand_code_search_escape_sequences(code)
-        assert code.find(open) == -1
-        assert code.find(close) == -1
+        (start_tag, end_tag) = expand_code_search_escape_sequences(code)  # TODO: fix this
+        assert code.find(start_tag) == -1
+        assert code.find(end_tag) == -1
 
     def test_expand_code_tokenize_anims(self):
         items = ["1", "2", "3", "-", ",", "[", "]", "<", ">", "a", "b", "c", "d", "e", "}", "{"]
         code = []
-        for i in range(100):
+        for _ in range(100):
             code.extend(items)
             random.shuffle(items)
 
@@ -251,7 +250,8 @@ class TestExpandCode(unittest.TestCase):
         assert len(out[0]) > 0
         assert len(out[1]) > 0
         for item in out[0]:  # anims
-            assert item.startswith("[") and item.endswith("]")
+            assert item.startswith("[")
+            assert item.endswith("]")
         for item in out[1]:  # non-anims
             assert not (item.startswith("[") and item.endswith("]"))
 
@@ -381,7 +381,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{enumerate}\n\\end{enumerate}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_itemenum(self):
         lines = ["# one", "#* onefoo", "#* onebar", "## oneone", "#*# onefooone"]
@@ -395,7 +395,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{enumerate}\n\\end{itemize}\n\\end{enumerate}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_header(self):
         lines = ["==== foo ====", "@FRAMEHEADER=bar", "==== bar ===="]
@@ -408,7 +408,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "  \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_footer(self):
         lines = ["==== foo ====", "@FRAMEFOOTER=bar", "==== bar ===="]
@@ -421,7 +421,7 @@ class TestConvert2Beamer(unittest.TestCase):
             " bar \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_subexp_footer(self):
         lines = ["==== foo ====", "@FRAMEFOOTER=\\huge bar 3", "==== bar ===="]
@@ -434,7 +434,7 @@ class TestConvert2Beamer(unittest.TestCase):
             " \\huge bar 3 \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_section_footer(self):
         lines = ["==== foo ====", "@FRAMEFOOTER=bar", "== foosec ==", "==== bar ===="]
@@ -448,13 +448,13 @@ class TestConvert2Beamer(unittest.TestCase):
             " bar \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_itemizeclose_column(self):
         lines = ["* foo", "[[[6cm]]]"]
         expected = ["\n", "\\begin{itemize}\n  \\item foo", "\\end{itemize}\n\\column{6cm}", ""]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_fragile(self):
         lines = ["==== foo ====[fragile]", "foo"]
@@ -466,27 +466,27 @@ class TestConvert2Beamer(unittest.TestCase):
             "  \n\\end{frame}\n",
         ]
         out = convert2beamer(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_code_inside_code(self):
         lines = ["<[code]", "\\[code\\]", "[code]>"]
         out = convert2beamer(lines)
-        self.assertTrue("code" in "\n".join(out))
+        assert "code" in "\n".join(out)
 
     def test_indexing_inside_code(self):
         lines = ["<[code]", "i\\[12345\\]", "[code]>"]
         out = convert2beamer(lines)
-        self.assertTrue("12345" in "\n".join(out))
+        assert "12345" in "\n".join(out)
 
     def test_a_list_inside_code(self):
         lines = ["<[code]", "\\[11111 10000 9000 code 70000\\]", "[code]>"]
         out = convert2beamer(lines)
-        self.assertTrue("11111" in "\n".join(out))
+        assert "11111" in "\n".join(out)
 
     def test_utf8_in_code(self):
         lines = ["<[code]", "ä", "[code]>"]
         # this should not raise an exception
-        out = convert2beamer(lines)
+        convert2beamer(lines)
 
     def test_use_code_in_itemenums(self):
         lines = [
@@ -506,7 +506,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "\\end{itemize}\n\\end{itemize}\n",
         ]
         received = convert2beamer(lines)
-        self.assertEqual(expected, received)
+        assert expected == received
 
     def test_exhuberant_title(self):
         lines = [
@@ -519,7 +519,7 @@ class TestConvert2Beamer(unittest.TestCase):
             "  \n\\end{frame}\n",
         ]
         received = convert2beamer(lines)
-        self.assertEqual(expected, received)
+        assert expected == received
 
     def test_autotemplate(self):
         lines = [
@@ -532,7 +532,7 @@ class TestConvert2Beamer(unittest.TestCase):
         expected = ["\\documentclass{beamer}"]
 
         received = convert2beamer(lines)
-        self.assertTrue(expected[0] in received[1])
+        assert expected[0] in received[1]
 
 
 class TestFileCache(unittest.TestCase):
@@ -543,11 +543,11 @@ class TestFileCache(unittest.TestCase):
         clear_file_cache()
 
     def test_file_cache_works(self):
-        local_path = os.path.dirname(os.path.abspath(__file__))
-        source_file = os.path.join(local_path, "example/includefile.txt")
+        local_path = Path(__file__).parent
+        source_file = local_path / "example" / "includefile.txt"
         out = get_lines_from_cache(source_file)
         expected = "Multiple inputs"
-        self.assertTrue(expected in out[0])
+        assert expected in out[0]
 
 
 class TestFileInclusion(unittest.TestCase):
@@ -577,21 +577,21 @@ class TestFileInclusion(unittest.TestCase):
         expected = "test_file"
         line = ">>>test_file<<<"
         out = include_file(line)
-        self.assertEqual(expected, out)
+        assert expected == out
 
     def test_include_file_recursive_works(self):
         expected = ["content from test_file2", "test file content"]
         out = include_file_recursive("test_file2")
-        self.assertEqual(expected, out)
+        assert expected == out
 
     def test_include_file_recursive_honors_nowiki(self):
         expected = ["content from test_file3", "<[nowiki]", ">>>test_file<<<", "[nowiki]>"]
         out = include_file_recursive("test_file3")
-        self.assertEqual(expected, out)
+        assert expected == out
 
     def test_include_file_recursive_detects_loop(self):
-        expected = ["test_file_loop content"]
-        self.assertRaises(Exception, include_file_recursive, "test_file_loop")
+        with pytest.raises(Exception):  # noqa: PT011, B017  TODO: fix this
+            include_file_recursive("test_file_loop")
 
     def test_include_file_disabled_inside_code(self):
         expected = [
@@ -601,7 +601,7 @@ class TestFileInclusion(unittest.TestCase):
         ]
         out = include_file_recursive("test_file_code")
         out = convert2beamer(out)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_include_file_inside_code_inside_nowiki(self):
         expected = [
@@ -613,7 +613,7 @@ class TestFileInclusion(unittest.TestCase):
         ]
         out = include_file_recursive("test_file_code_nowiki")
         out = convert2beamer(out)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_include_file_after_code(self):
         expected = [
@@ -624,7 +624,7 @@ class TestFileInclusion(unittest.TestCase):
         ]
         out = include_file_recursive("test_file_include_after_code")
         out = convert2beamer(out)
-        self.assertEqual(out, expected)
+        assert out == expected
 
 
 class TestMunge(unittest.TestCase):
@@ -632,18 +632,18 @@ class TestMunge(unittest.TestCase):
         in_ = ["* one\\", "  two", "* three", "* four"]
         expected = ["* one  two", "* three", "* four"]
         out = munge_input_lines(in_)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_multi_munge(self):
         in_ = ["* one\\", "  two\\", "  three", "* four"]
         expected = ["* one  two  three", "* four"]
         out = munge_input_lines(in_)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_correct_munge_escape(self):
         in_ = ["* one\\\\", "  two"]
         out = munge_input_lines(in_)
-        self.assertEqual(out, in_)
+        assert out == in_
 
 
 class TestSelectedFramesMode(unittest.TestCase):
@@ -657,13 +657,13 @@ class TestSelectedFramesMode(unittest.TestCase):
         lines = ["!==== foo ====", "mooo"]
         expected = ["!==== foo ====", "mooo"]
         out = filter_selected_lines(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_unselected_frames_simple(self):
         lines = ["==== foo ====", "moo"]
         expected = []
         out = filter_selected_lines(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_selected_frames_mixed(self):
         lines = [
@@ -679,7 +679,7 @@ class TestSelectedFramesMode(unittest.TestCase):
         ]
         expected = ["!==== selected ====", "moo", "!==== selected2 ====", "moo"]
         out = filter_selected_lines(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
     def test_selected_frames_autotemplate(self):
         lines = [
@@ -692,7 +692,7 @@ class TestSelectedFramesMode(unittest.TestCase):
         ]
         expected = ["<[autotemplate]", "[autotemplate]>", "!==== selected ====", "foo", ""]
         out = filter_selected_lines(lines)
-        self.assertEqual(out, expected)
+        assert out == expected
 
 
 if __name__ == "__main__":
