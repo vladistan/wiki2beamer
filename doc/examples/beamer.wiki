@@ -52,7 +52,7 @@ date={\today}
 {\ \ \ \ \ \ }\textbf{$\backslash$item }{Which might be cascaded\\
 }{\ \ \ \ \ \ }\textbf{$\backslash$item }{Just like this\\
 }{\ \ \ \ }\textbf{$\backslash$end}{$\{$}{itemize}{$\}$}\\
-{\ \ \ \ }\textbf{$\backslash$item }{ The }\textbf{$\backslash$LaTeX}{$\{$$\}$ }{Beamer source code for this slide looks like this:\\
+{\ \ \ \ }\textbf{$\backslash$item }{ The }\textbf{$\backslash$LaTeX}{$\{\$\$\}$ }{Beamer source code for this slide looks like this:\\
 }{\ \ }\textbf{$\backslash$end}{$\{$}{itemize}{$\}$}\\
 { $\}$}\\
 }
